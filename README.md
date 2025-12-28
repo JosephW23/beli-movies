@@ -24,3 +24,11 @@ Day 1:
 - FastAPI backend running with /health endpoint
 - Expo React Native app initialized
 - iOS Simulator setup in progress
+
+Day 2:
+- Supabase project created
+- Supabase Postgres connected to FastAPI via DATABASE_URL
+- SQLModel session wired (engine + get_session dependency)
+- Core database models created (User, Title, Event, Comparison, Score, Friendship, Activity)
+- Tables successfully created in Supabase
+- /db-health endpoint added and returns {"db":"ok"}
