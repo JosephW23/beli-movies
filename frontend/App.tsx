@@ -1,16 +1,21 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+
+import HomeScreen from "./src/screens/HomeScreen";
+import AddScreen from "./src/screens/AddScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
+
+const Tab = createBottomTabNavigator();
 
 export default function App() {
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Text>Hello from Expo 👋</Text>
-    </View>
+    <NavigationContainer>
+      <Tab.Navigator>
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Add" component={AddScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }
