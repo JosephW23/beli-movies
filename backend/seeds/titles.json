@@ -1,0 +1,23 @@
+[
+  { "tmdb_id": 1001, "name": "Spirited Away", "type": "movie", "year": 2001, "poster_url": "https://via.placeholder.com/300x450?text=Spirited+Away", "genres": "animation,fantasy" },
+  { "tmdb_id": 1002, "name": "The Dark Knight", "type": "movie", "year": 2008, "poster_url": "https://via.placeholder.com/300x450?text=The+Dark+Knight", "genres": "action,crime" },
+  { "tmdb_id": 1003, "name": "Inception", "type": "movie", "year": 2010, "poster_url": "https://via.placeholder.com/300x450?text=Inception", "genres": "sci-fi,thriller" },
+  { "tmdb_id": 1004, "name": "Interstellar", "type": "movie", "year": 2014, "poster_url": "https://via.placeholder.com/300x450?text=Interstellar", "genres": "sci-fi,drama" },
+  { "tmdb_id": 1005, "name": "Parasite", "type": "movie", "year": 2019, "poster_url": "https://via.placeholder.com/300x450?text=Parasite", "genres": "thriller,drama" },
+  { "tmdb_id": 1006, "name": "Whiplash", "type": "movie", "year": 2014, "poster_url": "https://via.placeholder.com/300x450?text=Whiplash", "genres": "drama,music" },
+  { "tmdb_id": 1007, "name": "The Matrix", "type": "movie", "year": 1999, "poster_url": "https://via.placeholder.com/300x450?text=The+Matrix", "genres": "sci-fi,action" },
+  { "tmdb_id": 1008, "name": "Your Name", "type": "movie", "year": 2016, "poster_url": "https://via.placeholder.com/300x450?text=Your+Name", "genres": "animation,romance" },
+  { "tmdb_id": 1009, "name": "The Social Network", "type": "movie", "year": 2010, "poster_url": "https://via.placeholder.com/300x450?text=The+Social+Network", "genres": "drama" },
+  { "tmdb_id": 1010, "name": "Get Out", "type": "movie", "year": 2017, "poster_url": "https://via.placeholder.com/300x450?text=Get+Out", "genres": "horror,thriller" },
+
+  { "tmdb_id": 2001, "name": "Breaking Bad", "type": "tv", "year": 2008, "poster_url": "https://via.placeholder.com/300x450?text=Breaking+Bad", "genres": "crime,drama" },
+  { "tmdb_id": 2002, "name": "Game of Thrones", "type": "tv", "year": 2011, "poster_url": "https://via.placeholder.com/300x450?text=Game+of+Thrones", "genres": "fantasy,drama" },
+  { "tmdb_id": 2003, "name": "Stranger Things", "type": "tv", "year": 2016, "poster_url": "https://via.placeholder.com/300x450?text=Stranger+Things", "genres": "sci-fi,horror" },
+  { "tmdb_id": 2004, "name": "The Office (US)", "type": "tv", "year": 2005, "poster_url": "https://via.placeholder.com/300x450?text=The+Office+US", "genres": "comedy" },
+  { "tmdb_id": 2005, "name": "Attack on Titan", "type": "tv", "year": 2013, "poster_url": "https://via.placeholder.com/300x450?text=Attack+on+Titan", "genres": "animation,action" },
+  { "tmdb_id": 2006, "name": "Arcane", "type": "tv", "year": 2021, "poster_url": "https://via.placeholder.com/300x450?text=Arcane", "genres": "animation,action" },
+  { "tmdb_id": 2007, "name": "Black Mirror", "type": "tv", "year": 2011, "poster_url": "https://via.placeholder.com/300x450?text=Black+Mirror", "genres": "sci-fi,drama" },
+  { "tmdb_id": 2008, "name": "The Last of Us", "type": "tv", "year": 2023, "poster_url": "https://via.placeholder.com/300x450?text=The+Last+of+Us", "genres": "drama,action" },
+  { "tmdb_id": 2009, "name": "Succession", "type": "tv", "year": 2018, "poster_url": "https://via.placeholder.com/300x450?text=Succession", "genres": "drama" },
+  { "tmdb_id": 2010, "name": "The Bear", "type": "tv", "year": 2022, "poster_url": "https://via.placeholder.com/300x450?text=The+Bear", "genres": "comedy,drama" }
+]
