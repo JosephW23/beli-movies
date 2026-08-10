@@ -24,9 +24,73 @@ Home | Add | Search | Profile
 
 ## Project Structure
 
-- `frontend/` — React Native + Expo app
-- `backend/` — FastAPI backend
-- `docs/` — Architecture, API docs, etc.
+- `frontend/src/navigation/` — auth gate, main tabs, and nested Add stack
+- `frontend/src/screens/` — screen-level layout and data orchestration
+- `frontend/src/components/` — reusable presentational UI
+- `frontend/src/api/` — typed backend client functions
+- `frontend/src/types/` — shared TypeScript models
+- `backend/app/api/` — thin FastAPI routers
+- `backend/app/services/` — title, event, and social business logic
+- `backend/app/core/` — Supabase JWT verification
+- `backend/app/models/` — database models
+- `docs/` — architecture, API, auth, and design notes
+
+## How to Run Locally
+
+### Backend
+
+From the repository root:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+Replace the placeholders in `backend/.env` with your Supabase Postgres and Auth
+values. The required variables are:
+
+- `DATABASE_URL`
+- `SUPABASE_JWKS_URL`
+- `SUPABASE_ISSUER`
+- `SUPABASE_AUDIENCE` (normally `authenticated`)
+
+The API runs at `http://127.0.0.1:8000`. Check `/health`, then open `/docs`
+for the interactive API documentation.
+
+### Frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm start
+```
+
+Set these values in `frontend/.env`:
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_API_BASE_URL`
+
+For a physical phone, `EXPO_PUBLIC_API_BASE_URL` must use the computer's LAN IP,
+such as `http://192.168.1.20:8000`, rather than `localhost`. With Expo running,
+press `i` for the iOS Simulator or `a` for Android. Use the installed development
+build when native modules are required.
+
+Never commit either `.env` file. They are ignored by Git; the tracked
+`.env.example` files contain placeholders only.
+
+## Screenshots
+
+| Home | Add | Search | Profile |
+| --- | --- | --- | --- |
+| Coming soon | Coming soon | Coming soon | Coming soon |
 
 ## Status
 
@@ -63,3 +127,10 @@ Day 6:
 - Mutual friend creation and friend listing
 - Event-backed activity records and authenticated social feed
 - Home feed cards and Profile friend management
+
+Day 7:
+- Thin backend routers and domain-focused services
+- Stable auth gate, main tabs, and nested Add flow
+- Shared frontend API client and reusable data types/components
+- Loading, error, empty, and action-feedback states
+- Local setup and environment documentation

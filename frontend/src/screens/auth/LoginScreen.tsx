@@ -8,14 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+
 import { useAuth } from "../../auth/AuthContext";
 import { friendlyAuthError } from "../../lib/authErrors";
+import type { AuthStackParamList } from "../../navigation/AuthStack";
 import { brandFont } from "../../theme";
 
-
-type Props = {
-  navigation: any; // we’ll type this later
-};
+type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export default function LoginScreen({ navigation }: Props) {
   const { signIn, error, isLoading } = useAuth();

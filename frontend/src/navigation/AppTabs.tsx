@@ -3,9 +3,9 @@ import { Text } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import HomeScreen from "../screens/HomeScreen";
-import AddScreen from "../screens/AddScreen";
 import SearchScreen from "../screens/SearchScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import AddStack from "./AddStack";
 import { colors } from "../theme";
 
 export type AppTabsParamList = {
@@ -23,12 +23,12 @@ export default function AppTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.ink,
-        tabBarInactiveTintColor: "#9A9A9A",
-        tabBarLabelStyle: { fontSize: 9, fontWeight: "600" },
+        tabBarInactiveTintColor: "#737373",
+        tabBarLabelStyle: { fontSize: 13, fontWeight: "700", marginTop: 2 },
         tabBarStyle: {
-          height: 64,
-          paddingTop: 6,
-          paddingBottom: 7,
+          height: 82,
+          paddingTop: 8,
+          paddingBottom: 10,
           backgroundColor: colors.background,
           borderTopColor: colors.border,
         },
@@ -38,7 +38,7 @@ export default function AppTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Add" component={AddScreen} />
+      <Tab.Screen name="Add" component={AddStack} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -65,9 +65,9 @@ function TabGlyph({
     <Text
       style={{
         color,
-        fontSize: name === "Add" ? 20 : 18,
+        fontSize: name === "Add" ? 31 : 28,
         fontWeight: focused ? "800" : "500",
-        lineHeight: 20,
+        lineHeight: 31,
       }}
     >
       {glyphs[name]}

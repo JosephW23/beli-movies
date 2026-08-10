@@ -5,8 +5,8 @@ import { usernameFromFullName } from "../lib/username";
 
 type AuthContextValue = {
   token: string | null;
-  isRestoring: boolean; // <-- NEW: only for app start
-  isLoading: boolean;   // <-- still used for button loading (login/signup/logout)
+  isRestoring: boolean;
+  isLoading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (fullName: string, email: string, password: string) => Promise<void>;
@@ -15,22 +15,24 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
-  // NEW: split the loading states
   const [isRestoring, setIsRestoring] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [error, setError] = useState<string | null>(null);
 
-  // Init: restore token on app start
   useEffect(() => {
     let isMounted = true;
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isMounted) return;
 
       const nextToken = session?.access_token ?? null;
@@ -70,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!accessToken) throw new Error("No access token returned.");
 
       setToken(accessToken);
-    } catch (e: any) {
-      setError(e?.message ?? "Sign in failed.");
+    } catch (requestError) {
+      setError(errorMessage(requestError, "Sign in failed."));
       setToken(null);
     } finally {
       setIsLoading(false);
@@ -102,8 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setToken(null);
       }
-    } catch (e: any) {
-      setError(e?.message ?? "Sign up failed.");
+    } catch (requestError) {
+      setError(errorMessage(requestError, "Sign up failed."));
       setToken(null);
     } finally {
       setIsLoading(false);

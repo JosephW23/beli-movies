@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
   leading: { marginRight: 8 },
   copy: { flex: 1 },
   title: { color: colors.ink, fontSize: 24, fontWeight: "800", letterSpacing: -0.4 },
-  subtitle: { color: colors.secondary, fontSize: 11, marginTop: 3 },
+  subtitle: { color: "#707070", fontSize: 13, marginTop: 3 },
   trailing: { marginLeft: 8 },
 });

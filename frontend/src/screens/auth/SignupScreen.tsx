@@ -8,15 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+
 import { useAuth } from "../../auth/AuthContext";
 import { friendlyAuthError } from "../../lib/authErrors";
-import { brandFont } from "../../theme";
 import { usernameFromFullName } from "../../lib/username";
+import type { AuthStackParamList } from "../../navigation/AuthStack";
+import { brandFont } from "../../theme";
 
-
-type Props = {
-  navigation: any;
-};
+type Props = NativeStackScreenProps<AuthStackParamList, "Signup">;
 
 export default function SignupScreen({ navigation }: Props) {
   const { signUp, error, isLoading } = useAuth();

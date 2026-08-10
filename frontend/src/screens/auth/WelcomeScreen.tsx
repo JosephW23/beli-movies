@@ -1,10 +1,11 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+
+import type { AuthStackParamList } from "../../navigation/AuthStack";
 import { brandFont } from "../../theme";
 
-type Props = {
-  navigation: any; // we’ll type this later
-};
+type Props = NativeStackScreenProps<AuthStackParamList, "Welcome">;
 
 export default function WelcomeScreen({ navigation }: Props) {
   return (

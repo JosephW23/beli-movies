@@ -116,7 +116,7 @@ export default function HomeScreen() {
           <View style={styles.loading}>
             <ActivityIndicator size="small" color={colors.ink} />
           </View>
-        ) : (
+        ) : recommendations.length ? (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -135,6 +135,13 @@ export default function HomeScreen() {
               </View>
             ))}
           </ScrollView>
+        ) : (
+          <View style={styles.emptyRecommendations}>
+            <Text style={styles.emptyActivityTitle}>You’re all caught up.</Text>
+            <Text style={styles.emptyActivityText}>
+              Search the catalog to find another movie, show, or anime.
+            </Text>
+          </View>
         )}
 
         <View style={styles.sectionHeading}>
@@ -145,7 +152,12 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.activityCard}>
-          {activities.length ? (
+          {isLoading ? (
+            <View style={styles.activityLoading}>
+              <ActivityIndicator size="small" color={colors.ink} />
+              <Text style={styles.emptyActivityText}>Loading activity…</Text>
+            </View>
+          ) : activities.length ? (
             activities.slice(0, 10).map((activity, index, items) => (
               <ActivityCard
                 key={activity.id}
@@ -183,9 +195,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     marginTop: 14,
   },
-  feedTab: { paddingHorizontal: 10, paddingVertical: 8, marginRight: 6 },
+  feedTab: { paddingHorizontal: 10, paddingVertical: 10, marginRight: 6 },
   activeFeedTab: { borderBottomWidth: 1.5, borderBottomColor: colors.ink },
-  feedTabText: { color: colors.secondary, fontSize: 9, fontWeight: "600" },
+  feedTabText: { color: "#707070", fontSize: 14, fontWeight: "600" },
   activeFeedTabText: { color: colors.ink },
   sectionHeading: {
     flexDirection: "row",
@@ -194,14 +206,23 @@ const styles = StyleSheet.create({
     marginTop: 23,
     marginBottom: 11,
   },
-  sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
-  sectionCaption: { color: colors.secondary, fontSize: 9, marginTop: 2 },
-  arrow: { color: colors.secondary, fontSize: 19 },
+  sectionTitle: { color: colors.ink, fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
+  sectionCaption: { color: "#707070", fontSize: 14, marginTop: 3 },
+  arrow: { color: "#707070", fontSize: 24 },
   loading: { height: 150, alignItems: "center", justifyContent: "center" },
+  emptyRecommendations: {
+    minHeight: 88,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 13,
+  },
   posterRow: { gap: 9, paddingRight: 16 },
   posterItem: { width: 92 },
-  posterTitle: { color: colors.ink, fontSize: 10, lineHeight: 13, fontWeight: "700", marginTop: 5 },
-  posterMeta: { color: colors.secondary, fontSize: 8, marginTop: 2 },
+  posterTitle: { color: colors.ink, fontSize: 15, lineHeight: 18, fontWeight: "700", marginTop: 6 },
+  posterMeta: { color: "#707070", fontSize: 12, marginTop: 2 },
   activityCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -209,9 +230,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     overflow: "hidden",
   },
+  activityLoading: {
+    minHeight: 70,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   emptyActivity: { paddingHorizontal: 13, paddingVertical: 16 },
-  emptyActivityTitle: { color: colors.ink, fontSize: 11, fontWeight: "700" },
-  emptyActivityText: { color: colors.secondary, fontSize: 9, marginTop: 4 },
+  emptyActivityTitle: { color: colors.ink, fontSize: 15, fontWeight: "700" },
+  emptyActivityText: { color: "#707070", fontSize: 13, lineHeight: 18, marginTop: 4 },
   errorCard: {
     borderWidth: 1,
     borderColor: "#E4C7C3",
@@ -219,5 +247,5 @@ const styles = StyleSheet.create({
     padding: 9,
     marginTop: 14,
   },
-  errorText: { color: colors.error, fontSize: 9, textAlign: "center" },
+  errorText: { color: colors.error, fontSize: 12, textAlign: "center" },
 });

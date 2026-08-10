@@ -1,15 +1,15 @@
-from __future__ import annotations
-from typing import Optional, Tuple, List
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
+
 from app.models.title import Title
+
 
 def search_titles(
     session: Session,
-    query: Optional[str],
-    type: Optional[str],
+    query: str | None,
+    type: str | None,
     page: int,
     page_size: int,
-) -> Tuple[List[Title], int]:
+) -> tuple[list[Title], int]:
     """
     Returns (items, total).
 
@@ -19,7 +19,7 @@ def search_titles(
     """
 
     page = max(page, 1)
-    page_size = min(max(page_size, 1), 100)  # safety cap
+    page_size = min(max(page_size, 1), 100)
     offset = (page - 1) * page_size
 
     # Build the base "list" query
@@ -49,7 +49,6 @@ def search_titles(
     return items, total
 
 
-def get_title_by_id(session: Session, title_id: int) -> Optional[Title]:
+def get_title_by_id(session: Session, title_id: int) -> Title | None:
     stmt = select(Title).where(Title.id == title_id)
     return session.exec(stmt).first()
-    

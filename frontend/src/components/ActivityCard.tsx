@@ -58,7 +58,7 @@ export default function ActivityCard({ activity, isLast = false }: Props) {
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 72,
+    minHeight: 80,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 11,
@@ -75,10 +75,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
     marginRight: 9,
   },
-  avatarText: { color: colors.background, fontSize: 10, fontWeight: "800" },
+  avatarText: { color: colors.background, fontSize: 11, fontWeight: "800" },
   copy: { flex: 1, marginLeft: 10 },
-  line: { color: colors.secondary, fontSize: 10, lineHeight: 14 },
+  line: { color: "#707070", fontSize: 13, lineHeight: 18 },
   strong: { color: colors.ink, fontWeight: "700" },
-  meta: { color: colors.secondary, fontSize: 8, marginTop: 3, textTransform: "capitalize" },
-  time: { color: colors.secondary, fontSize: 8, marginLeft: 8 },
+  meta: { color: "#707070", fontSize: 11, marginTop: 3, textTransform: "capitalize" },
+  time: { color: "#707070", fontSize: 11, marginLeft: 8 },
 });

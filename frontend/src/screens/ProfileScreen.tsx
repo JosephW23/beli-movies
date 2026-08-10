@@ -1,12 +1,10 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -20,6 +18,7 @@ import { addFriend, getFriends } from "../api/social";
 import type { SocialUser } from "../api/social";
 import { useAuth } from "../auth/AuthContext";
 import AppScreenHeader from "../components/AppScreenHeader";
+import FriendsSection from "../components/FriendsSection";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
 
@@ -34,24 +33,43 @@ export default function ProfileScreen() {
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [friendError, setFriendError] = useState<string | null>(null);
   const [friendSuccess, setFriendSuccess] = useState<string | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  const loadProfile = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!token) return;
+      setIsProfileLoading(true);
+      try {
+        const [currentUser, list, currentFriends] = await Promise.all([
+          getMe(token, signal),
+          getMyList(token, signal),
+          getFriends(token, signal),
+        ]);
+        setUser(currentUser);
+        setMyList(list);
+        setFriends(currentFriends);
+        setProfileError(null);
+      } catch (requestError) {
+        if (!signal?.aborted) {
+          setProfileError(
+            requestError instanceof Error ? requestError.message : "Could not load profile"
+          );
+        }
+      } finally {
+        if (!signal?.aborted) setIsProfileLoading(false);
+      }
+    },
+    [token]
+  );
 
   useFocusEffect(
     useCallback(() => {
       if (!token) return;
       const controller = new AbortController();
-      void Promise.all([
-        getMe(token, controller.signal),
-        getMyList(token, controller.signal),
-        getFriends(token, controller.signal),
-      ])
-        .then(([currentUser, list, currentFriends]) => {
-          setUser(currentUser);
-          setMyList(list);
-          setFriends(currentFriends);
-        })
-        .catch(() => undefined);
+      void loadProfile(controller.signal);
       return () => controller.abort();
-    }, [token])
+    }, [loadProfile, token])
   );
 
   const email = user?.email ?? "WATCHD member";
@@ -72,7 +90,6 @@ export default function ProfileScreen() {
     const usernameToAdd = friendUsername.trim().replace(/^@/, "");
     if (!token || !usernameToAdd) return;
 
-    Keyboard.dismiss();
     setIsAddingFriend(true);
     setFriendError(null);
     setFriendSuccess(null);
@@ -98,6 +115,19 @@ export default function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <AppScreenHeader title="Profile" subtitle="You" />
+
+        {isProfileLoading ? (
+          <View style={styles.profileLoading}>
+            <ActivityIndicator size="small" color={colors.ink} />
+            <Text style={styles.profileLoadingText}>Loading your profile…</Text>
+          </View>
+        ) : null}
+        {profileError ? (
+          <Pressable style={styles.profileError} onPress={() => void loadProfile()}>
+            <Text style={styles.profileErrorText}>{profileError}</Text>
+            <Text style={styles.profileErrorText}>Tap to retry</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.identity}>
           <View style={styles.avatar}>
@@ -164,66 +194,16 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Friends</Text>
-          <Text style={styles.friendCount}>{friends.length}</Text>
-        </View>
-        <View style={styles.addFriendCard}>
-          <Text style={styles.friendCaption}>Find a WATCHD friend by name or username</Text>
-          <View style={styles.friendForm}>
-            <TextInput
-              value={friendUsername}
-              onChangeText={setFriendUsername}
-              onSubmitEditing={() => void handleAddFriend()}
-              placeholder="Full name or @username"
-              placeholderTextColor={colors.secondary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              style={styles.friendInput}
-            />
-            <Pressable
-              onPress={() => void handleAddFriend()}
-              disabled={isAddingFriend || !friendUsername.trim()}
-              style={({ pressed }) => [
-                styles.addFriendButton,
-                pressed && styles.pressed,
-                (isAddingFriend || !friendUsername.trim()) && styles.disabled,
-              ]}
-            >
-              {isAddingFriend ? (
-                <ActivityIndicator size="small" color={colors.background} />
-              ) : (
-                <Text style={styles.addFriendButtonText}>Add Friend</Text>
-              )}
-            </Pressable>
-          </View>
-          {friendError ? <Text style={styles.friendError}>{friendError}</Text> : null}
-          {friendSuccess ? <Text style={styles.friendSuccess}>{friendSuccess}</Text> : null}
-        </View>
-
-        <View style={styles.friendList}>
-          {friends.length ? (
-            friends.map((friend, index) => (
-              <View
-                key={friend.id}
-                style={[styles.friendRow, index === friends.length - 1 && styles.lastFriendRow]}
-              >
-                <View style={styles.friendAvatar}>
-                  <Text style={styles.friendAvatarText}>
-                    {friend.full_name.slice(0, 1).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.friendCopy}>
-                  <Text style={styles.friendName}>{friend.full_name}</Text>
-                  <Text style={styles.friendUsername}>@{friend.username}</Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.noFriends}>No friends yet. Add someone to build your feed.</Text>
-          )}
-        </View>
+        <FriendsSection
+          friends={friends}
+          username={friendUsername}
+          onChangeUsername={setFriendUsername}
+          onAdd={() => void handleAddFriend()}
+          isLoading={isProfileLoading}
+          isAdding={isAddingFriend}
+          error={friendError}
+          success={friendSuccess}
+        />
 
         <View style={styles.menu}>
           {["Your Reviews", "Your Lists", "Activity", "Account"].map((item) => (
@@ -250,6 +230,22 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, paddingBottom: 28 },
+  profileLoading: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  profileLoadingText: { color: "#707070", fontSize: 12 },
+  profileError: {
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: radii.control,
+    padding: 10,
+    marginTop: 12,
+  },
+  profileErrorText: { color: colors.error, fontSize: 12, marginTop: 2 },
   identity: { flexDirection: "row", alignItems: "center", marginTop: 15 },
   avatar: {
     width: 44,
@@ -262,7 +258,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.background, fontSize: 17, fontWeight: "800" },
   identityCopy: { flex: 1, marginLeft: 11 },
   name: { color: colors.ink, fontSize: 14, fontWeight: "800" },
-  email: { color: colors.secondary, fontSize: 10, marginTop: 2 },
+  email: { color: "#707070", fontSize: 12, marginTop: 2 },
   settingsIcon: { color: colors.ink, fontSize: 16 },
   stats: {
     flexDirection: "row",
@@ -275,10 +271,10 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   stat: { flex: 1, alignItems: "center" },
-  statValue: { color: colors.ink, fontSize: 14, fontWeight: "800" },
-  statLabel: { color: colors.secondary, fontSize: 7, marginTop: 2 },
+  statValue: { color: colors.ink, fontSize: 16, fontWeight: "800" },
+  statLabel: { color: "#707070", fontSize: 11, marginTop: 2 },
   statDivider: { width: 1, height: 23, backgroundColor: colors.border },
-  sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "800", marginTop: 22 },
+  sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: "800", marginTop: 22 },
   tasteCard: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -287,7 +283,7 @@ const styles = StyleSheet.create({
     padding: 11,
     marginTop: 8,
   },
-  tasteCaption: { color: colors.secondary, fontSize: 8 },
+  tasteCaption: { color: "#707070", fontSize: 11 },
   tasteChips: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 8 },
   tasteChip: {
     borderWidth: 1,
@@ -296,11 +292,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  tasteText: { color: colors.ink, fontSize: 8, textTransform: "capitalize" },
-  tasteEmpty: { color: colors.secondary, fontSize: 9, marginTop: 7 },
+  tasteText: { color: colors.ink, fontSize: 11, textTransform: "capitalize" },
+  tasteEmpty: { color: "#707070", fontSize: 12, marginTop: 7 },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  arrow: { color: colors.secondary, fontSize: 19, marginTop: 15 },
-  friendCount: { color: colors.secondary, fontSize: 10, marginTop: 22 },
+  arrow: { color: "#707070", fontSize: 23, marginTop: 15 },
   topFour: { flexDirection: "row", gap: 8, marginTop: 8 },
   topItem: { position: "relative" },
   rankBadge: {
@@ -315,7 +310,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.ink,
   },
-  rankText: { color: colors.background, fontSize: 7, fontWeight: "800" },
+  rankText: { color: colors.background, fontSize: 9, fontWeight: "800" },
   topEmpty: {
     minHeight: 48,
     justifyContent: "center",
@@ -325,69 +320,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     marginTop: 8,
   },
-  topEmptyText: { color: colors.secondary, fontSize: 9 },
-  addFriendCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.card,
-    padding: 11,
-    marginTop: 8,
-  },
-  friendCaption: { color: colors.secondary, fontSize: 9 },
-  friendForm: { flexDirection: "row", gap: 8, marginTop: 9 },
-  friendInput: {
-    flex: 1,
-    height: 38,
-    color: colors.ink,
-    fontSize: 11,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.control,
-    paddingHorizontal: 10,
-    backgroundColor: colors.subtle,
-  },
-  addFriendButton: {
-    minWidth: 88,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.control,
-    backgroundColor: colors.ink,
-    paddingHorizontal: 11,
-  },
-  addFriendButtonText: { color: colors.background, fontSize: 10, fontWeight: "700" },
-  disabled: { opacity: 0.45 },
-  friendError: { color: colors.error, fontSize: 9, marginTop: 8 },
-  friendSuccess: { color: colors.success, fontSize: 9, marginTop: 8 },
-  friendList: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.card,
-    marginTop: 9,
-    overflow: "hidden",
-  },
-  friendRow: {
-    minHeight: 54,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 11,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  lastFriendRow: { borderBottomWidth: 0 },
-  friendAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.ink,
-  },
-  friendAvatarText: { color: colors.background, fontSize: 10, fontWeight: "800" },
-  friendCopy: { flex: 1, marginLeft: 10 },
-  friendName: { color: colors.ink, fontSize: 11, fontWeight: "700" },
-  friendUsername: { color: colors.secondary, fontSize: 8, marginTop: 2 },
-  noFriends: { color: colors.secondary, fontSize: 9, padding: 13 },
+  topEmptyText: { color: "#707070", fontSize: 12 },
   menu: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -405,7 +338,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  menuText: { color: colors.ink, fontSize: 10, fontWeight: "600" },
+  menuText: { color: colors.ink, fontSize: 13, fontWeight: "600" },
   chevron: { color: colors.secondary, fontSize: 18 },
   signOut: {
     minHeight: 38,
@@ -416,6 +349,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.control,
     marginTop: 12,
   },
-  signOutText: { color: colors.ink, fontSize: 10, fontWeight: "700" },
+  signOutText: { color: colors.ink, fontSize: 13, fontWeight: "700" },
   pressed: { opacity: 0.65 },
 });

@@ -18,6 +18,21 @@ Mobile app → Supabase Auth → JWT → FastAPI
 - Search: discover titles through search, media filters, genres, and curated rows
 - Profile: identity, stats, taste, top titles, friend management, and account
 
+The root auth gate owns the logged-in decision. Logged-out users see the Auth
+stack; logged-in users see the four main tabs. Add owns a nested stack so title
+selection and status updates do not become additional bottom tabs.
+
+## Code Responsibilities
+
+Backend requests follow `router → service → model/database`. Routers validate
+HTTP input and format responses; domain services own database queries and
+business rules. JWT validation and current-user resolution stay in `core/auth`.
+
+Frontend screens arrange page sections and request data through typed functions
+in `src/api`. The shared API client owns base URL, authorization headers, JSON
+handling, and errors. Components such as `ActivityCard`, `FriendsSection`, and
+`TitleRowList` receive data through props and do not fetch their own data.
+
 ## Core Tables
 
 - `user`: maps a verified Supabase JWT subject to an internal ID and public username
