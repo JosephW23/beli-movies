@@ -110,8 +110,8 @@ My List
 GET /me/list
 
 Return the authenticated user's Want to Watch and Watched titles, newest
-first. `WATCHING` is stored by the events API but does not have a Home section
-in the Day 5 response.
+first. `WATCHING` is stored by the events API but does not have a separate
+list in the Day 5 response.
 
 Headers:
 
@@ -136,3 +136,91 @@ Response:
   ],
   "watched": []
 }
+
+Friends
+POST /friends
+
+Add another WATCHD user as a mutual friend by public username. The current user
+comes from the Bearer token and is never accepted from the request body. The
+value may be entered as `alexsmith`, `@alexsmith`, or `Alex Smith`; all three
+normalize to the same username.
+
+At signup, the required Full Name generates the base username: `Joseph
+Whiteman` becomes `josephwhiteman`. If it is already taken, WATCHD appends a
+number such as `josephwhiteman2`.
+
+Headers:
+
+Authorization: Bearer <supabase-access-token>
+
+Request:
+
+{
+  "username": "alexsmith"
+}
+
+Response (`201 Created`):
+
+{
+  "id": 8,
+  "username": "alexsmith",
+  "full_name": "Alex Smith"
+}
+
+Errors:
+
+- `400` when a user tries to add themselves
+- `401` when the Bearer token is missing, invalid, or expired
+- `404` when no WATCHD user has that username
+- `409` when the friendship already exists
+- `422` when the request body is invalid
+
+GET /friends
+
+Return the authenticated user's friends.
+
+Headers:
+
+Authorization: Bearer <supabase-access-token>
+
+Response:
+
+[
+  {
+    "id": 8,
+    "username": "alexsmith",
+    "full_name": "Alex Smith"
+  }
+]
+
+Activity Feed
+GET /feed
+
+Return recent title activity from the authenticated user and their friends,
+newest first. Each `POST /events` write creates a corresponding activity.
+
+Headers:
+
+Authorization: Bearer <supabase-access-token>
+
+Response:
+
+[
+  {
+    "id": 31,
+    "user": {
+      "id": 8,
+      "username": "alexsmith",
+      "full_name": "Alex Smith"
+    },
+    "title": {
+      "id": 4,
+      "name": "Interstellar",
+      "type": "movie",
+      "year": 2014,
+      "poster_url": "..."
+    },
+    "status": "WATCHED",
+    "created_at": "2026-08-10T04:30:00Z"
+  }
+]

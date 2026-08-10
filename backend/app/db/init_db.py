@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlmodel import SQLModel
 from app.db.session import engine
 
@@ -19,3 +20,20 @@ def init_db() -> None:
     MVP approach: create tables directly on startup.
     """
     SQLModel.metadata.create_all(engine)
+
+    # create_all does not add columns to tables that already exist. Keep this
+    # small migration idempotent so pre-Day-6 user rows gain public identity.
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as connection:
+            connection.execute(
+                text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS full_name VARCHAR')
+            )
+            connection.execute(
+                text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS username VARCHAR')
+            )
+            connection.execute(
+                text(
+                    'CREATE UNIQUE INDEX IF NOT EXISTS ix_user_username_ci '
+                    'ON "user" (lower(username)) WHERE username IS NOT NULL'
+                )
+            )

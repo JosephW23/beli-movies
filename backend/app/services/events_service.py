@@ -1,8 +1,10 @@
+import json
 from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
-from app.models.enums import EventType
+from app.models.activity import Activity
+from app.models.enums import ActivityType, EventType
 from app.models.event import Event
 from app.models.title import Title
 from app.models.user import User
@@ -43,6 +45,14 @@ def create_event(
         event.created_at = datetime.now(timezone.utc)
 
     session.add(event)
+    session.add(
+        Activity(
+            user_id=user.id,
+            title_id=title_id,
+            activity_type=ActivityType.EVENT_CREATED,
+            metadata_json=json.dumps({"status": status.value}),
+        )
+    )
     session.commit()
     session.refresh(event)
     return event, title

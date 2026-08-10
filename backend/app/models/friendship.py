@@ -6,8 +6,8 @@ from sqlmodel import Field, SQLModel
 
 class Friendship(SQLModel, table=True):
     """
-    MVP: directed follow
-    user_id (follower) -> friend_id (followed)
+    MVP mutual friendship stored as one row between two users.
+    Service queries treat either side of the row as the current user's friend.
     """
 
     __table_args__ = (

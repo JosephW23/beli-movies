@@ -11,6 +11,7 @@ import {
 import { useAuth } from "../../auth/AuthContext";
 import { friendlyAuthError } from "../../lib/authErrors";
 import { brandFont } from "../../theme";
+import { usernameFromFullName } from "../../lib/username";
 
 
 type Props = {
@@ -20,7 +21,7 @@ type Props = {
 export default function SignupScreen({ navigation }: Props) {
   const { signUp, error, isLoading } = useAuth();
 
-  const [fullName, setFullName] = useState(""); // MVP: UI only for now
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -31,7 +32,7 @@ export default function SignupScreen({ navigation }: Props) {
   async function onSignup() {
     // Basic client-side check so we don't call Supabase if mismatch
     if (password !== confirm) return;
-    await signUp(email.trim(), password);
+    await signUp(fullName.trim(), email.trim(), password);
   }
 
   const showErrorText = showMismatch
@@ -54,6 +55,11 @@ export default function SignupScreen({ navigation }: Props) {
             value={fullName}
             onChangeText={setFullName}
           />
+          {fullName.trim() ? (
+            <Text style={styles.usernamePreview}>
+              Friends can find you as @{usernameFromFullName(fullName)}
+            </Text>
+          ) : null}
 
           <TextInput
             style={styles.input}
@@ -89,11 +95,20 @@ export default function SignupScreen({ navigation }: Props) {
 
           <Pressable
             onPress={onSignup}
-            disabled={isLoading || !passwordsMatch || email.trim().length === 0}
+            disabled={
+              isLoading ||
+              !passwordsMatch ||
+              email.trim().length === 0 ||
+              fullName.trim().length === 0
+            }
             style={({ pressed }) => [
               styles.primaryBtn,
               pressed && styles.pressed,
-              (isLoading || !passwordsMatch || email.trim().length === 0) && styles.disabled,
+              (isLoading ||
+                !passwordsMatch ||
+                email.trim().length === 0 ||
+                fullName.trim().length === 0) &&
+                styles.disabled,
             ]}
           >
             <Text style={styles.primaryText}>
@@ -157,6 +172,13 @@ const styles = StyleSheet.create({
     color: ERROR,
     fontSize: 12,
     marginTop: 2,
+    marginBottom: 10,
+  },
+  usernamePreview: {
+    width: "100%",
+    color: GRAY,
+    fontSize: 11,
+    marginTop: -3,
     marginBottom: 10,
   },
   primaryBtn: {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { clearToken, getToken, saveToken } from "../lib/token";
+import { clearLegacyToken } from "../lib/token";
+import { usernameFromFullName } from "../lib/username";
 
 type AuthContextValue = {
   token: string | null;
@@ -8,7 +9,7 @@ type AuthContextValue = {
   isLoading: boolean;   // <-- still used for button loading (login/signup/logout)
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (fullName: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -30,24 +31,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // With our custom SecureStore setup Supabase has no persisted session to
-      // report on startup. Let restore() handle that initial value instead.
-      if (!isMounted || (event === "INITIAL_SESSION" && !session)) return;
+      if (!isMounted) return;
 
       const nextToken = session?.access_token ?? null;
       setToken(nextToken);
-
-      // Keep SecureStore in sync for sign-in, sign-up, refresh, and sign-out
-      // events that can happen outside the methods below.
-      void (nextToken ? saveToken(nextToken) : clearToken()).catch(() => {
-        if (isMounted) setError("Failed to save session.");
-      });
     });
 
     async function restore() {
       try {
-        const stored = await getToken();
-        if (isMounted) setToken(stored);
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (isMounted) setToken(data.session?.access_token ?? null);
       } catch (e) {
         if (isMounted) setError("Failed to restore session.");
       } finally {
@@ -75,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const accessToken = data.session?.access_token;
       if (!accessToken) throw new Error("No access token returned.");
 
-      await saveToken(accessToken);
       setToken(accessToken);
     } catch (e: any) {
       setError(e?.message ?? "Sign in failed.");
@@ -85,13 +78,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function signUp(email: string, password: string) {
+  async function signUp(fullName: string, email: string, password: string) {
     setError(null);
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            username: usernameFromFullName(fullName),
+          },
+        },
       });
       if (error) throw error;
 
@@ -99,7 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const accessToken = data.session?.access_token ?? null;
 
       if (accessToken) {
-        await saveToken(accessToken);
         setToken(accessToken);
       } else {
         setToken(null);
@@ -118,7 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await supabase.auth.signOut();
     } finally {
-      await clearToken();
+      // Remove the legacy access-token-only value used before full Supabase
+      // session persistence was enabled.
+      await clearLegacyToken();
       setToken(null);
       setIsLoading(false);
     }

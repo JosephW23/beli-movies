@@ -5,17 +5,23 @@ authenticated application endpoints.
 
 ## Login flow
 
-1. The Expo app calls `supabase.auth.signInWithPassword()` or
-   `supabase.auth.signUp()`.
+1. Signup converts the required full name into a public username (for example,
+   `Joseph Whiteman` → `@josephwhiteman`) and stores both values in Supabase
+   user metadata. Login uses `supabase.auth.signInWithPassword()`.
 2. Supabase returns a signed access token for a confirmed user.
-3. `AuthContext` listens for Supabase auth-state changes, stores the access
-   token with Expo SecureStore, and exposes it to the app.
-4. `RootNavigator` shows the auth stack when the token is absent and the app
+3. Supabase persists the complete session securely through an Expo SecureStore
+   adapter and refreshes short-lived access tokens automatically.
+4. `AuthContext` listens for sign-in, refresh, and sign-out events and exposes
+   the current access token to the app.
+5. `RootNavigator` shows the auth stack when the token is absent and the app
    tabs when it is present.
-5. Authenticated FastAPI calls include `Authorization: Bearer <access-token>`.
+6. Authenticated FastAPI calls include `Authorization: Bearer <access-token>`.
 
-The mobile token is stored under the SecureStore key `access_token`. Signing
-out clears both the Supabase session and this key.
+The persisted Supabase session includes both access and refresh credentials in
+SecureStore. The storage adapter splits the encrypted session into small values
+to stay below SecureStore's per-value size limit. Signing out clears that
+session. An expired legacy access-token-only session is sent back to Login
+instead of leaving the app on broken API screens.
 
 ## Backend configuration
 
@@ -48,7 +54,9 @@ pip install -r requirements.txt
 - permits only the asymmetric `ES256` and `RS256` algorithms;
 - validates the signature, expiration, issuer, audience, and subject;
 - uses the verified `sub` claim to find or create the internal `User` row;
-- updates the internal email when the verified Supabase email changes.
+- updates the internal email when the verified Supabase email changes;
+- syncs trusted `full_name` and `username` metadata into the internal user row;
+- adds a numeric suffix when a generated username is already taken.
 
 Missing, invalid, incorrectly issued, or expired tokens receive `401
 Unauthorized`. Authentication failures do not expose JWT parsing details.
@@ -76,10 +84,11 @@ Successful response:
 {
   "id": 1,
   "email": "person@example.com",
-  "supabase_sub": "00000000-0000-0000-0000-000000000000"
+  "supabase_sub": "00000000-0000-0000-0000-000000000000",
+  "full_name": "Joseph Whiteman",
+  "username": "josephwhiteman"
 }
 ```
 
-The temporary Home screen calls `/me` using
-`EXPO_PUBLIC_API_BASE_URL` and displays `Logged in as: <email>` when the
-backend accepts the token.
+Profile calls `/me` using `EXPO_PUBLIC_API_BASE_URL`; all protected event,
+friend, list, and feed requests reuse the current refreshed access token.

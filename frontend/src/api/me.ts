@@ -2,6 +2,8 @@ export type CurrentUser = {
   id: number;
   email: string | null;
   supabase_sub: string;
+  full_name: string | null;
+  username: string | null;
 };
 
 const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;

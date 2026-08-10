@@ -1,4 +1,5 @@
 from app.api.events import router as events_router
+from app.api.social import router as social_router
 from app.api.titles import router as titles_router
 from app.api.users import router as users_router
 from app.db.init_db import init_db
@@ -30,3 +31,4 @@ def db_health(session: Session = Depends(get_session)):
 app.include_router(titles_router)
 app.include_router(users_router)
 app.include_router(events_router)
+app.include_router(social_router)

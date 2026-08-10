@@ -17,6 +17,10 @@ class User(SQLModel, table=True):
     # email: nullable string
     email: Optional[str] = Field(default=None)
 
+    # Public identity copied from trusted Supabase user metadata.
+    full_name: Optional[str] = Field(default=None)
+    username: Optional[str] = Field(default=None, index=True)
+
     # created_at: timestamp
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

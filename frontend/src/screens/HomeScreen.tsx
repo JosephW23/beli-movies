@@ -12,9 +12,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMyList } from "../api/events";
-import type { MyList, SavedTitle } from "../api/events";
+import type { MyList } from "../api/events";
+import { getFeed } from "../api/social";
+import type { FeedItem } from "../api/social";
 import { searchTitles } from "../api/titles";
 import { useAuth } from "../auth/AuthContext";
+import ActivityCard from "../components/ActivityCard";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
@@ -26,6 +29,7 @@ export default function HomeScreen() {
   const { token } = useAuth();
   const [myList, setMyList] = useState<MyList>(EMPTY_LIST);
   const [recommendations, setRecommendations] = useState<Title[]>([]);
+  const [activities, setActivities] = useState<FeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,9 +40,10 @@ export default function HomeScreen() {
       refreshing ? setIsRefreshing(true) : setIsLoading(true);
 
       try {
-        const [currentList, catalog] = await Promise.all([
+        const [currentList, catalog, feed] = await Promise.all([
           getMyList(token, signal),
           searchTitles("", signal),
+          getFeed(token, signal),
         ]);
         const savedIds = new Set([
           ...currentList.want_to_watch.map((title) => title.id),
@@ -46,6 +51,7 @@ export default function HomeScreen() {
         ]);
         setMyList(currentList);
         setRecommendations(catalog.filter((title) => !savedIds.has(title.id)));
+        setActivities(feed);
         setError(null);
       } catch (requestError) {
         if (!signal?.aborted) {
@@ -72,10 +78,6 @@ export default function HomeScreen() {
       return () => controller.abort();
     }, [loadHome])
   );
-
-  const savedActivity = [...myList.watched, ...myList.want_to_watch]
-    .sort((left, right) => right.saved_at.localeCompare(left.saved_at))
-    .slice(0, 3);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -143,23 +145,22 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.activityCard}>
-          {savedActivity.length > 0
-            ? savedActivity.map((title, index) => (
-                <ActivityRow
-                  key={title.event_id}
-                  title={title}
-                  action={title.status === 'WATCHED' ? 'marked as watched' : 'saved for later'}
-                  isLast={index === savedActivity.length - 1}
-                />
-              ))
-            : recommendations.slice(2, 5).map((title, index, items) => (
-                <ActivityRow
-                  key={title.id}
-                  title={title}
-                  action="is popular on WATCHD"
-                  isLast={index === items.length - 1}
-                />
-              ))}
+          {activities.length ? (
+            activities.slice(0, 10).map((activity, index, items) => (
+              <ActivityCard
+                key={activity.id}
+                activity={activity}
+                isLast={index === items.length - 1}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyActivity}>
+              <Text style={styles.emptyActivityTitle}>Your feed is ready.</Text>
+              <Text style={styles.emptyActivityText}>
+                Add friends or rate a title to see activity here.
+              </Text>
+            </View>
+          )}
         </View>
 
         {error ? (
@@ -169,28 +170,6 @@ export default function HomeScreen() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function ActivityRow({
-  title,
-  action,
-  isLast,
-}: {
-  title: Title | SavedTitle;
-  action: string;
-  isLast: boolean;
-}) {
-  return (
-    <View style={[styles.activityRow, isLast && styles.lastActivityRow]}>
-      <View style={styles.avatar}><Text style={styles.avatarText}>W</Text></View>
-      <TitlePoster name={title.name} posterUrl={title.poster_url} width={34} height={48} />
-      <View style={styles.activityCopy}>
-        <Text style={styles.activityName} numberOfLines={1}>{title.name}</Text>
-        <Text style={styles.activityText}>{action}</Text>
-      </View>
-      <Text style={styles.activityTime}>now</Text>
-    </View>
   );
 }
 
@@ -230,29 +209,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     overflow: "hidden",
   },
-  activityRow: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  lastActivityRow: { borderBottomWidth: 0 },
-  avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.ink,
-    marginRight: 8,
-  },
-  avatarText: { color: colors.background, fontSize: 9, fontWeight: "800" },
-  activityCopy: { flex: 1, marginLeft: 9 },
-  activityName: { color: colors.ink, fontSize: 11, fontWeight: "700" },
-  activityText: { color: colors.secondary, fontSize: 9, marginTop: 2 },
-  activityTime: { color: colors.secondary, fontSize: 8 },
+  emptyActivity: { paddingHorizontal: 13, paddingVertical: 16 },
+  emptyActivityTitle: { color: colors.ink, fontSize: 11, fontWeight: "700" },
+  emptyActivityText: { color: colors.secondary, fontSize: 9, marginTop: 4 },
   errorCard: {
     borderWidth: 1,
     borderColor: "#E4C7C3",

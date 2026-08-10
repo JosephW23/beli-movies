@@ -7,9 +7,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError, PyJWKClient, PyJWKClientError
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db.session import get_session
+from app.core.usernames import normalize_username
 from app.models.user import User
 
 
@@ -63,24 +65,61 @@ def verify_token(token: str) -> dict[str, Any]:
     return payload
 
 
+def _available_username(session: Session, requested: str) -> str:
+    base = normalize_username(requested)
+    candidate = base
+    suffix = 2
+    while session.exec(
+        select(User).where(func.lower(User.username) == candidate.lower())
+    ).first() is not None:
+        suffix_text = str(suffix)
+        candidate = f"{base[: 24 - len(suffix_text)]}{suffix_text}"
+        suffix += 1
+    return candidate
+
+
 def _get_or_create_user(session: Session, payload: dict[str, Any]) -> User:
     supabase_sub = payload["sub"]
     email_claim = payload.get("email")
     email = email_claim if isinstance(email_claim, str) else None
+    metadata_claim = payload.get("user_metadata")
+    metadata = metadata_claim if isinstance(metadata_claim, dict) else {}
+    full_name_claim = metadata.get("full_name")
+    full_name = full_name_claim.strip() if isinstance(full_name_claim, str) else None
+    requested_username_claim = metadata.get("username")
+    requested_username = (
+        requested_username_claim
+        if isinstance(requested_username_claim, str)
+        else full_name or (email.split("@", 1)[0] if email else "watchduser")
+    )
 
     user = session.exec(
         select(User).where(User.supabase_sub == supabase_sub)
     ).one_or_none()
 
     if user is not None:
+        changed = False
         if user.email != email:
             user.email = email
+            changed = True
+        if full_name and user.full_name != full_name:
+            user.full_name = full_name
+            changed = True
+        if not user.username:
+            user.username = _available_username(session, requested_username)
+            changed = True
+        if changed:
             session.add(user)
             session.commit()
             session.refresh(user)
         return user
 
-    user = User(supabase_sub=supabase_sub, email=email)
+    user = User(
+        supabase_sub=supabase_sub,
+        email=email,
+        full_name=full_name,
+        username=_available_username(session, requested_username),
+    )
     session.add(user)
 
     try:
