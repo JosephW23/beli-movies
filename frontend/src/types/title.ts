@@ -1,9 +1,9 @@
 export type Title = {
   id: number;
   name: string;
-  type: "movie" | "tv";
-  year?: number;
-  poster_url?: string;
-  genres?: string;
-  tmdb_id?: number;
+  type: string;
+  year: number | null;
+  poster_url: string | null;
+  genres: string | null;
+  tmdb_id: number | null;
 };

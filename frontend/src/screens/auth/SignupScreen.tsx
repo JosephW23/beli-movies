@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../auth/AuthContext";
 import { friendlyAuthError } from "../../lib/authErrors";
+import { brandFont } from "../../theme";
 
 
 type Props = {
@@ -112,10 +113,10 @@ export default function SignupScreen({ navigation }: Props) {
   );
 }
 
-const BG = "#F7F2EC";
+const BG = "#FFFFFF";
 const BLACK = "#111111";
 const GRAY = "#9A9A9A";
-const BORDER = "#E2DDD6";
+const BORDER = "#E5E5E5";
 const ERROR = "#B54747";
 
 const styles = StyleSheet.create({
@@ -130,9 +131,10 @@ const styles = StyleSheet.create({
   },
   logo: {
     color: BLACK,
+    fontFamily: brandFont,
     fontSize: 44,
     fontWeight: "900",
-    letterSpacing: 1.5,
+    letterSpacing: -1,
     marginBottom: 18,
   },
   form: {

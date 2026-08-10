@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { brandFont } from "../../theme";
 
 type Props = {
   navigation: any; // we’ll type this later
@@ -32,7 +33,7 @@ export default function WelcomeScreen({ navigation }: Props) {
   );
 }
 
-const BG = "#F7F2EC"; // warm off-white like your mock
+const BG = "#FFFFFF";
 const BLACK = "#111111";
 const GRAY = "#8A8A8A";
 
@@ -48,9 +49,10 @@ const styles = StyleSheet.create({
   },
   logo: {
     color: BLACK,
+    fontFamily: brandFont,
     fontSize: 44,
     fontWeight: "900",
-    letterSpacing: 1.5,
+    letterSpacing: -1,
   },
   subtitle: {
     marginTop: 10,
