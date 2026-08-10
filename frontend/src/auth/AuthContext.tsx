@@ -27,6 +27,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // With our custom SecureStore setup Supabase has no persisted session to
+      // report on startup. Let restore() handle that initial value instead.
+      if (!isMounted || (event === "INITIAL_SESSION" && !session)) return;
+
+      const nextToken = session?.access_token ?? null;
+      setToken(nextToken);
+
+      // Keep SecureStore in sync for sign-in, sign-up, refresh, and sign-out
+      // events that can happen outside the methods below.
+      void (nextToken ? saveToken(nextToken) : clearToken()).catch(() => {
+        if (isMounted) setError("Failed to save session.");
+      });
+    });
+
     async function restore() {
       try {
         const stored = await getToken();
@@ -41,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restore();
     return () => {
       isMounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 

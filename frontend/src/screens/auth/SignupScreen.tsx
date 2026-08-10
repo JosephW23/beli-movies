@@ -69,6 +69,7 @@ export default function SignupScreen({ navigation }: Props) {
             placeholder="Password"
             placeholderTextColor={GRAY}
             secureTextEntry
+            textContentType="none"
             value={password}
             onChangeText={setPassword}
           />
@@ -78,6 +79,7 @@ export default function SignupScreen({ navigation }: Props) {
             placeholder="Confirm Password"
             placeholderTextColor={GRAY}
             secureTextEntry
+            textContentType="none"
             value={confirm}
             onChangeText={setConfirm}
           />
