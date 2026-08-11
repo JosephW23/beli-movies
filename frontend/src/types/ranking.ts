@@ -16,3 +16,13 @@ export type RankingProgress = {
   score: number | null;
   total_ranked: number;
 };
+
+export type PersonalRanking = {
+  rank: number;
+  title_id: number;
+  title_name: string;
+  type: string;
+  score: number;
+  poster_url: string | null;
+  year: number | null;
+};

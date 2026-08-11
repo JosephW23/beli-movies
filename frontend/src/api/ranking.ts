@@ -1,4 +1,4 @@
-import type { RankingProgress } from "../types/ranking";
+import type { PersonalRanking, RankingProgress } from "../types/ranking";
 import { apiRequest } from "./client";
 
 export function getComparisonCandidate(
@@ -31,5 +31,19 @@ export function savePreference(
       comparison_title_id: comparisonTitleId,
       preferred_title_id: preferredTitleId,
     }),
+  });
+}
+
+export function getMyRankings(
+  token: string,
+  limit = 20,
+  type?: "movie" | "tv",
+  signal?: AbortSignal
+): Promise<PersonalRanking[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (type) params.set("type", type);
+  return apiRequest<PersonalRanking[]>(`/me/rankings?${params.toString()}`, {
+    token,
+    signal,
   });
 }

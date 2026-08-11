@@ -14,6 +14,7 @@ import { getMyList } from "../api/events";
 import type { MyList } from "../api/events";
 import { getMe } from "../api/me";
 import type { CurrentUser } from "../api/me";
+import { getMyRankings } from "../api/ranking";
 import { addFriend, getFriends } from "../api/social";
 import type { SocialUser } from "../api/social";
 import { useAuth } from "../auth/AuthContext";
@@ -22,8 +23,10 @@ import FriendsSection from "../components/FriendsSection";
 import RankingList from "../components/RankingList";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
+import type { PersonalRanking } from "../types/ranking";
 
 const EMPTY_LIST: MyList = { want_to_watch: [], watched: [] };
+type RankingFilter = "all" | "movie" | "tv";
 
 export default function ProfileScreen() {
   const { token, signOut, isLoading } = useAuth();
@@ -36,6 +39,10 @@ export default function ProfileScreen() {
   const [friendSuccess, setFriendSuccess] = useState<string | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [rankings, setRankings] = useState<PersonalRanking[]>([]);
+  const [rankingFilter, setRankingFilter] = useState<RankingFilter>("all");
+  const [isRankingsLoading, setIsRankingsLoading] = useState(true);
+  const [rankingsError, setRankingsError] = useState<string | null>(null);
 
   const loadProfile = useCallback(
     async (signal?: AbortSignal) => {
@@ -64,6 +71,35 @@ export default function ProfileScreen() {
     [token]
   );
 
+  const loadRankings = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!token) return;
+      setIsRankingsLoading(true);
+      try {
+        setRankings(
+          await getMyRankings(
+            token,
+            20,
+            rankingFilter === "all" ? undefined : rankingFilter,
+            signal
+          )
+        );
+        setRankingsError(null);
+      } catch (requestError) {
+        if (!signal?.aborted) {
+          setRankingsError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Could not load rankings."
+          );
+        }
+      } finally {
+        if (!signal?.aborted) setIsRankingsLoading(false);
+      }
+    },
+    [rankingFilter, token]
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (!token) return;
@@ -71,6 +107,15 @@ export default function ProfileScreen() {
       void loadProfile(controller.signal);
       return () => controller.abort();
     }, [loadProfile, token])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      const controller = new AbortController();
+      void loadRankings(controller.signal);
+      return () => controller.abort();
+    }, [loadRankings, token])
   );
 
   const email = user?.email ?? "WATCHD member";
@@ -203,8 +248,45 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Your Rankings</Text>
-        <RankingList titles={rankedTitles} />
+        <Text style={styles.sectionTitle}>My Rankings</Text>
+        <View style={styles.rankingFilters}>
+          {([
+            ["all", "All"],
+            ["movie", "Movies"],
+            ["tv", "TV"],
+          ] as const).map(([value, label]) => (
+            <Pressable
+              key={value}
+              onPress={() => setRankingFilter(value)}
+              style={[
+                styles.rankingFilter,
+                rankingFilter === value && styles.activeRankingFilter,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.rankingFilterText,
+                  rankingFilter === value && styles.activeRankingFilterText,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {isRankingsLoading ? (
+          <View style={styles.rankingsLoading}>
+            <ActivityIndicator size="small" color={colors.ink} />
+            <Text style={styles.rankingsLoadingText}>Loading rankings…</Text>
+          </View>
+        ) : rankingsError ? (
+          <Pressable style={styles.rankingsError} onPress={() => void loadRankings()}>
+            <Text style={styles.rankingsErrorText}>Could not load rankings.</Text>
+            <Text style={styles.rankingsRetry}>Tap to retry</Text>
+          </Pressable>
+        ) : (
+          <RankingList titles={rankings} />
+        )}
 
         <FriendsSection
           friends={friends}
@@ -334,6 +416,41 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   topEmptyText: { color: "#707070", fontSize: 12 },
+  rankingFilters: { flexDirection: "row", gap: 8, marginTop: 10 },
+  rankingFilter: {
+    minHeight: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.subtle,
+    paddingHorizontal: 14,
+  },
+  activeRankingFilter: { backgroundColor: colors.ink, borderColor: colors.ink },
+  rankingFilterText: { color: colors.ink, fontSize: 12, fontWeight: "700" },
+  activeRankingFilterText: { color: colors.background },
+  rankingsLoading: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    marginTop: 9,
+  },
+  rankingsLoadingText: { color: "#707070", fontSize: 12 },
+  rankingsError: {
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: radii.card,
+    padding: 12,
+    marginTop: 9,
+  },
+  rankingsErrorText: { color: colors.error, fontSize: 12 },
+  rankingsRetry: { color: colors.error, fontSize: 12, fontWeight: "800", marginTop: 3 },
   menu: {
     borderWidth: 1,
     borderColor: colors.border,

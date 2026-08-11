@@ -140,3 +140,9 @@ Day 8:
 - Binary rank insertion and calculated personal 1–10 scores
 - Compare screen inside the Add stack
 - Stored comparison history and ranking documentation
+
+Day 9:
+- Authenticated personal rankings endpoint with limit and media filters
+- Score-ordered My Rankings section on Profile
+- All, Movies, and TV ranking filters
+- Ranking-specific loading, error, and empty states

@@ -152,6 +152,43 @@ Response:
   "watched": []
 }
 
+My Rankings
+GET /me/rankings
+
+Return the authenticated user's stored personal rankings, ordered by score from
+highest to lowest. The current user comes from the Supabase Bearer token; the
+client never sends a user ID.
+
+Query parameters:
+
+- `limit` — optional result limit from 1–100; defaults to 20
+- `type` — optional `movie` or `tv` filter
+
+Example requests:
+
+GET /me/rankings?limit=10
+
+GET /me/rankings?limit=20&type=movie
+
+GET /me/rankings?limit=20&type=tv
+
+Response:
+
+[
+  {
+    "rank": 1,
+    "title_id": 4,
+    "title_name": "Interstellar",
+    "type": "movie",
+    "score": 9.6,
+    "poster_url": "...",
+    "year": 2014
+  }
+]
+
+The result is `[]` when the user has no rankings. Filtered results receive
+sequential display ranks, so the highest-scored matching title is `#1`.
+
 Friends
 POST /friends
 

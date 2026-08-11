@@ -62,3 +62,14 @@ the preferred-title API contract.
 
 All candidate selection, validation, position narrowing, final placement, and
 score calculation live in `ranking_service.py`.
+
+## Rankings in Profile
+
+Day 8 creates and updates the stored personal ranking. Day 9 only reads that
+data for display; Profile never calculates a second score.
+
+Profile requests `GET /me/rankings?limit=20` with the user's JWT. The backend
+filters by the current user and sorts stored scores from highest to lowest, so
+the highest score appears as `#1`. Selecting Movies or TV repeats the request
+with the corresponding `type` filter. Loading, errors, and an empty ranking are
+handled independently from the rest of the Profile screen.

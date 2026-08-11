@@ -1,12 +1,12 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import type { SavedTitle } from "../api/events";
 import { colors, radii } from "../theme";
+import type { PersonalRanking } from "../types/ranking";
 import TitlePoster from "./TitlePoster";
 
 type Props = {
-  titles: SavedTitle[];
+  titles: PersonalRanking[];
 };
 
 export default function RankingList({ titles }: Props) {
@@ -21,15 +21,15 @@ export default function RankingList({ titles }: Props) {
   return (
     <View style={styles.list}>
       {titles.map((title, index) => (
-        <View key={title.event_id} style={[styles.row, index === titles.length - 1 && styles.lastRow]}>
-          <Text style={styles.position}>#{title.personal_rank}</Text>
-          <TitlePoster name={title.name} posterUrl={title.poster_url} width={36} height={52} />
+        <View key={title.title_id} style={[styles.row, index === titles.length - 1 && styles.lastRow]}>
+          <Text style={styles.position}>#{title.rank}</Text>
+          <TitlePoster name={title.title_name} posterUrl={title.poster_url} width={36} height={52} />
           <View style={styles.copy}>
-            <Text style={styles.title} numberOfLines={1}>{title.name}</Text>
+            <Text style={styles.title} numberOfLines={1}>{title.title_name}</Text>
             <Text style={styles.metadata}>{[title.year, title.type].filter(Boolean).join(" · ")}</Text>
           </View>
           <View style={styles.scoreBadge}>
-            <Text style={styles.score}>{title.personal_score?.toFixed(1)}</Text>
+            <Text style={styles.score}>{title.score.toFixed(1)}</Text>
           </View>
         </View>
       ))}

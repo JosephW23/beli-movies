@@ -46,6 +46,25 @@ def calculate_score(rank_position: int, total_ranked: int) -> float:
     return round(max(1.0, 10.0 - (9.0 * (rank_position - 1) / denominator)), 1)
 
 
+def get_user_rankings(
+    session: Session,
+    user: User,
+    limit: int = 20,
+    title_type: str | None = None,
+) -> list[tuple[Score, Title]]:
+    user_id = _user_id(user)
+    statement = (
+        select(Score, Title)
+        .join(Title, Score.title_id == Title.id)
+        .where(Score.user_id == user_id)
+        .order_by(Score.score.desc(), Score.rank_position, Score.id)
+        .limit(limit)
+    )
+    if title_type:
+        statement = statement.where(Title.type == title_type)
+    return list(session.exec(statement).all())
+
+
 def start_ranking(session: Session, user: User, title_id: int) -> RankingProgress:
     user_id = _user_id(user)
     title = _watched_title(session, user_id, title_id)
