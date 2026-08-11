@@ -51,6 +51,14 @@ export default function ActivityCard({ activity, isLast = false }: Props) {
           @{activity.user.username} · {[activity.title.year, activity.title.type].filter(Boolean).join(" · ")}
         </Text>
       </View>
+      {activity.status === "WATCHED" && activity.personal_score != null ? (
+        <View style={styles.scoreBlock}>
+          <Text style={styles.score}>{activity.personal_score.toFixed(1)}</Text>
+          {activity.personal_rank != null ? (
+            <Text style={styles.rank}>#{activity.personal_rank}</Text>
+          ) : null}
+        </View>
+      ) : null}
       <Text style={styles.time}>{relativeTime(activity.created_at)}</Text>
     </View>
   );
@@ -80,5 +88,8 @@ const styles = StyleSheet.create({
   line: { color: "#707070", fontSize: 13, lineHeight: 18 },
   strong: { color: colors.ink, fontWeight: "700" },
   meta: { color: "#707070", fontSize: 11, marginTop: 3, textTransform: "capitalize" },
+  scoreBlock: { minWidth: 38, alignItems: "center", marginLeft: 7 },
+  score: { color: colors.ink, fontSize: 14, fontWeight: "800" },
+  rank: { color: "#707070", fontSize: 9, marginTop: 1 },
   time: { color: "#707070", fontSize: 11, marginLeft: 8 },
 });

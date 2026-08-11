@@ -19,6 +19,7 @@ import type { SocialUser } from "../api/social";
 import { useAuth } from "../auth/AuthContext";
 import AppScreenHeader from "../components/AppScreenHeader";
 import FriendsSection from "../components/FriendsSection";
+import RankingList from "../components/RankingList";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
 
@@ -84,6 +85,13 @@ export default function ProfileScreen() {
         )
       ).slice(0, 5),
     [myList]
+  );
+  const rankedTitles = useMemo(
+    () =>
+      myList.watched
+        .filter((title) => title.personal_rank != null && title.personal_score != null)
+        .sort((left, right) => (left.personal_rank ?? 0) - (right.personal_rank ?? 0)),
+    [myList.watched]
   );
 
   async function handleAddFriend() {
@@ -179,12 +187,13 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Top 4 of All Time</Text>
           <Text style={styles.arrow}>›</Text>
         </View>
-        {myList.watched.length ? (
+        {rankedTitles.length ? (
           <View style={styles.topFour}>
-            {myList.watched.slice(0, 4).map((title, index) => (
+            {rankedTitles.slice(0, 4).map((title) => (
               <View key={title.event_id} style={styles.topItem}>
-                <View style={styles.rankBadge}><Text style={styles.rankText}>{index + 1}</Text></View>
+                <View style={styles.rankBadge}><Text style={styles.rankText}>{title.personal_rank}</Text></View>
                 <TitlePoster name={title.name} posterUrl={title.poster_url} width={74} height={108} />
+                <Text style={styles.topScore}>{title.personal_score?.toFixed(1)}</Text>
               </View>
             ))}
           </View>
@@ -193,6 +202,9 @@ export default function ProfileScreen() {
             <Text style={styles.topEmptyText}>Mark titles as watched to build your Top 4.</Text>
           </View>
         )}
+
+        <Text style={styles.sectionTitle}>Your Rankings</Text>
+        <RankingList titles={rankedTitles} />
 
         <FriendsSection
           friends={friends}
@@ -311,6 +323,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   rankText: { color: colors.background, fontSize: 9, fontWeight: "800" },
+  topScore: { color: colors.ink, fontSize: 12, fontWeight: "800", textAlign: "center", marginTop: 5 },
   topEmpty: {
     minHeight: 48,
     justifyContent: "center",

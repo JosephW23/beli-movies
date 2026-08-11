@@ -1,5 +1,6 @@
 from sqlmodel import Session, func, select
 
+from app.models.score import Score
 from app.models.title import Title
 
 
@@ -52,3 +53,10 @@ def search_titles(
 def get_title_by_id(session: Session, title_id: int) -> Title | None:
     stmt = select(Title).where(Title.id == title_id)
     return session.exec(stmt).first()
+
+
+def get_title_rating_summary(session: Session, title_id: int) -> tuple[float | None, int]:
+    average, count = session.exec(
+        select(func.avg(Score.score), func.count(Score.id)).where(Score.title_id == title_id)
+    ).one()
+    return (round(float(average), 1) if average is not None else None, int(count))

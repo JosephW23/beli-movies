@@ -37,3 +37,81 @@ def init_db() -> None:
                     'ON "user" (lower(username)) WHERE username IS NOT NULL'
                 )
             )
+            connection.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'comparison' AND column_name = 'title_a_id'
+                      ) THEN
+                        ALTER TABLE comparison RENAME COLUMN title_a_id TO new_title_id;
+                        ALTER TABLE comparison RENAME COLUMN title_b_id TO other_title_id;
+                        ALTER TABLE comparison RENAME COLUMN winner_title_id TO preferred_title_id;
+                      END IF;
+                    END $$
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    ALTER TABLE score
+                    ADD COLUMN IF NOT EXISTS rank_position INTEGER,
+                    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    WITH ordered AS (
+                      SELECT id, ROW_NUMBER() OVER (
+                        PARTITION BY user_id ORDER BY score DESC, id
+                      ) AS position
+                      FROM score
+                      WHERE rank_position IS NULL
+                    )
+                    UPDATE score
+                    SET rank_position = ordered.position
+                    FROM ordered
+                    WHERE score.id = ordered.id
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_score_rank_position "
+                    "ON score (user_id, rank_position)"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_comparison_new_title_id "
+                    "ON comparison (new_title_id)"
+                )
+            )
+            connection.execute(
+                text(
+                    """
+                    WITH totals AS (
+                      SELECT user_id, COUNT(*) AS total
+                      FROM score
+                      GROUP BY user_id
+                    )
+                    UPDATE score
+                    SET score = ROUND(GREATEST(
+                      1.0,
+                      10.0 - (9.0 * (score.rank_position - 1) /
+                        GREATEST(totals.total - 1, 9))
+                    )::numeric, 1)::double precision
+                    FROM totals
+                    WHERE score.user_id = totals.user_id
+                    """
+                )
+            )
+            connection.execute(
+                text("ALTER TABLE score ALTER COLUMN rank_position SET NOT NULL")
+            )

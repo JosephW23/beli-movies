@@ -9,6 +9,7 @@ from app.core.auth import get_current_user
 from app.db.session import get_session
 from app.models.enums import EventType
 from app.models.event import Event
+from app.models.score import Score
 from app.models.title import Title
 from app.models.user import User
 from app.services.events_service import (
@@ -16,6 +17,7 @@ from app.services.events_service import (
     create_event,
     get_user_list,
 )
+from app.services.ranking_service import start_ranking
 
 
 router = APIRouter(tags=["events"])
@@ -46,6 +48,8 @@ class SavedTitle(BaseModel):
     event_id: int
     status: EventType
     saved_at: datetime
+    personal_rank: int | None
+    personal_score: float | None
 
 
 class MyListResponse(BaseModel):
@@ -65,7 +69,7 @@ def _event_response(event: Event) -> EventResponse:
     )
 
 
-def _saved_title(event: Event, title: Title) -> SavedTitle:
+def _saved_title(event: Event, title: Title, ranking: Score | None) -> SavedTitle:
     if event.id is None or title.id is None:
         raise RuntimeError("Persisted list item is missing an id")
 
@@ -80,6 +84,8 @@ def _saved_title(event: Event, title: Title) -> SavedTitle:
         event_id=event.id,
         status=event.event_type,
         saved_at=event.created_at,
+        personal_rank=ranking.rank_position if ranking else None,
+        personal_score=ranking.score if ranking else None,
     )
 
 
@@ -103,6 +109,9 @@ def save_event(
     except TitleNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Title not found") from exc
 
+    if body.status == EventType.WATCHED:
+        start_ranking(session, current_user, body.title_id)
+
     return _event_response(event)
 
 
@@ -114,11 +123,11 @@ def read_my_list(
     grouped = get_user_list(session=session, user=current_user)
     return MyListResponse(
         want_to_watch=[
-            _saved_title(event, title)
-            for event, title in grouped[EventType.WANT]
+            _saved_title(event, title, ranking)
+            for event, title, ranking in grouped[EventType.WANT]
         ],
         watched=[
-            _saved_title(event, title)
-            for event, title in grouped[EventType.WATCHED]
+            _saved_title(event, title, ranking)
+            for event, title, ranking in grouped[EventType.WATCHED]
         ],
     )

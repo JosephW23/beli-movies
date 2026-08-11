@@ -1,24 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { searchTitles } from "../api/titles";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitlePoster from "../components/TitlePoster";
+import type { AppTabsParamList } from "../navigation/AppTabs";
 import { colors, radii } from "../theme";
 import type { Title } from "../types/title";
 
 type Filter = "All" | "Movies" | "TV Shows" | "Anime";
+type Props = BottomTabScreenProps<AppTabsParamList, "Search">;
 const FILTERS: Filter[] = ["All", "Movies", "TV Shows", "Anime"];
 
-export default function SearchScreen() {
+export default function SearchScreen({ navigation }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("All");
   const [titles, setTitles] = useState<Title[]>([]);
@@ -62,6 +66,10 @@ export default function SearchScreen() {
     new Set(titles.flatMap((title) => title.genres?.split(",") ?? []))
   ).slice(0, 6);
 
+  function openTitle(title: Title) {
+    navigation.navigate("Add", { screen: "TitleDetail", params: { title } });
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView style={styles.root} contentContainerStyle={styles.content}>
@@ -94,7 +102,7 @@ export default function SearchScreen() {
         {isLoading ? (
           <View style={styles.loading}><ActivityIndicator size="small" color={colors.ink} /></View>
         ) : query ? (
-          <CatalogGrid title="Search results" titles={visibleTitles} />
+          <CatalogGrid title="Search results" titles={visibleTitles} onPress={openTitle} />
         ) : (
           <>
             <View style={styles.sectionHeading}>
@@ -103,14 +111,14 @@ export default function SearchScreen() {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trending}>
               {visibleTitles.slice(0, 4).map((title) => (
-                <View key={title.id} style={styles.trendingItem}>
+                <Pressable key={title.id} style={styles.trendingItem} onPress={() => openTitle(title)}>
                   <TitlePoster name={title.name} posterUrl={title.poster_url} width={88} height={128} />
                   <Text style={styles.posterTitle} numberOfLines={2}>{title.name}</Text>
-                </View>
+                </Pressable>
               ))}
             </ScrollView>
 
-            <CatalogGrid title="Popular on WATCHD" titles={visibleTitles.slice(4, 10)} />
+            <CatalogGrid title="Popular on WATCHD" titles={visibleTitles.slice(4, 10)} onPress={openTitle} />
 
             <View style={styles.sectionHeading}>
               <Text style={styles.sectionTitle}>Genres</Text>
@@ -129,14 +137,14 @@ export default function SearchScreen() {
             </View>
             <View style={styles.topList}>
               {visibleTitles.slice(10, 13).map((title, index) => (
-                <View key={title.id} style={styles.topRow}>
+                <Pressable key={title.id} style={styles.topRow} onPress={() => openTitle(title)}>
                   <Text style={styles.rank}>{index + 1}</Text>
                   <TitlePoster name={title.name} posterUrl={title.poster_url} width={30} height={44} />
                   <View style={styles.topCopy}>
                     <Text style={styles.topName}>{title.name}</Text>
                     <Text style={styles.topMeta}>{title.year ?? title.type}</Text>
                   </View>
-                </View>
+                </Pressable>
               ))}
             </View>
           </>
@@ -148,17 +156,25 @@ export default function SearchScreen() {
   );
 }
 
-function CatalogGrid({ title, titles }: { title: string; titles: Title[] }) {
+function CatalogGrid({
+  title,
+  titles,
+  onPress,
+}: {
+  title: string;
+  titles: Title[];
+  onPress: (title: Title) => void;
+}) {
   return (
     <View>
       <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{title}</Text></View>
       {titles.length ? (
         <View style={styles.grid}>
           {titles.map((item) => (
-            <View key={item.id} style={styles.gridItem}>
+            <Pressable key={item.id} style={styles.gridItem} onPress={() => onPress(item)}>
               <TitlePoster name={item.name} posterUrl={item.poster_url} width={96} height={140} />
               <Text style={styles.posterTitle} numberOfLines={2}>{item.name}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : (

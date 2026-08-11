@@ -15,4 +15,6 @@ export type FeedItem = {
   title: FeedTitle;
   status: WatchStatus;
   created_at: string;
+  personal_rank: number | null;
+  personal_score: number | null;
 };

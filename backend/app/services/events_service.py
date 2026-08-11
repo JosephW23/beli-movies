@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 from app.models.activity import Activity
 from app.models.enums import ActivityType, EventType
 from app.models.event import Event
+from app.models.score import Score
 from app.models.title import Title
 from app.models.user import User
 
@@ -61,23 +62,27 @@ def create_event(
 def get_user_list(
     session: Session,
     user: User,
-) -> dict[EventType, list[tuple[Event, Title]]]:
+) -> dict[EventType, list[tuple[Event, Title, Score | None]]]:
     if user.id is None:
         raise RuntimeError("Current user must be persisted before loading a list")
 
     rows = session.exec(
-        select(Event, Title)
+        select(Event, Title, Score)
         .join(Title, Event.title_id == Title.id)
+        .outerjoin(
+            Score,
+            (Score.title_id == Title.id) & (Score.user_id == user.id),
+        )
         .where(Event.user_id == user.id)
         .order_by(Event.created_at.desc())
     ).all()
 
-    grouped: dict[EventType, list[tuple[Event, Title]]] = {
+    grouped: dict[EventType, list[tuple[Event, Title, Score | None]]] = {
         EventType.WANT: [],
         EventType.WATCHED: [],
         EventType.WATCHING: [],
     }
-    for event, title in rows:
-        grouped[event.event_type].append((event, title))
+    for event, title, ranking in rows:
+        grouped[event.event_type].append((event, title, ranking))
 
     return grouped

@@ -101,6 +101,9 @@ export default function AddScreen({ navigation }: Props) {
                 <Pressable key={title.event_id} onPress={() => chooseTitle(title)} style={styles.posterItem}>
                   <TitlePoster name={title.name} posterUrl={title.poster_url} width={68} height={100} />
                   <Text style={styles.posterName} numberOfLines={2}>{title.name}</Text>
+                  {title.personal_score != null ? (
+                    <Text style={styles.posterScore}>{title.personal_score.toFixed(1)}</Text>
+                  ) : null}
                 </Pressable>
               ))}
             </ScrollView>
@@ -185,6 +188,7 @@ const styles = StyleSheet.create({
   posterRow: { gap: 9, paddingRight: 16 },
   posterItem: { width: 68 },
   posterName: { color: colors.ink, fontSize: 12, lineHeight: 15, fontWeight: "600", marginTop: 5 },
+  posterScore: { color: colors.ink, fontSize: 12, fontWeight: "800", marginTop: 3 },
   findCard: {
     minHeight: 72,
     flexDirection: "row",

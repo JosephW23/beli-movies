@@ -66,6 +66,21 @@ Response:
   "tmdb_id": 1001
 }
 
+GET /titles/{id}/rating-summary
+
+Return the public WATCHD average for a title before the user submits their own
+ranking. Scores are rounded to one decimal place.
+
+Response:
+
+{
+  "average_score": 8.7,
+  "rating_count": 24
+}
+
+When nobody has ranked the title, `average_score` is `null` and `rating_count`
+is `0`.
+
 Events
 POST /events
 
@@ -224,3 +239,70 @@ Response:
     "created_at": "2026-08-10T04:30:00Z"
   }
 ]
+
+Pairwise Ranking
+GET /compare/candidate
+
+Return the next pairwise comparison for a newly watched title. Authentication is
+required. `title_id` identifies the watched title being placed.
+
+Query parameters:
+
+- `title_id` (required)
+- `exclude_title_ids` (optional comma-separated IDs used by Skip/Too Tough)
+
+Example:
+
+GET /compare/candidate?title_id=9
+
+Response while ranking:
+
+{
+  "complete": false,
+  "new_title": {
+    "id": 9,
+    "name": "Dune: Part Two",
+    "type": "movie",
+    "year": 2024,
+    "poster_url": "..."
+  },
+  "comparison_title": {
+    "id": 4,
+    "name": "Oppenheimer",
+    "type": "movie",
+    "year": 2023,
+    "poster_url": "..."
+  },
+  "comparison_number": 1,
+  "estimated_comparisons": 3,
+  "rank_position": null,
+  "score": null,
+  "total_ranked": 5
+}
+
+If the title is the user's first ranked title, or its exact position is known,
+`complete` is `true`, `comparison_title` is `null`, and `rank_position` and
+`score` contain the final result.
+
+POST /compare
+
+Record which of the two displayed titles the user prefers. Authentication is
+required.
+
+Request:
+
+{
+  "title_id": 9,
+  "comparison_title_id": 4,
+  "preferred_title_id": 9
+}
+
+The response uses the same shape as `GET /compare/candidate`: either the next
+comparison or the completed personal ranking.
+
+Validation errors:
+
+- `404` when the new title does not exist
+- `409` when the new title is not currently marked watched
+- `422` when the titles are the same, the comparison is invalid for the current
+  range, or `preferred_title_id` is not one of the displayed titles

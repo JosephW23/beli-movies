@@ -134,3 +134,9 @@ Day 7:
 - Shared frontend API client and reusable data types/components
 - Loading, error, empty, and action-feedback states
 - Local setup and environment documentation
+
+Day 8:
+- Pairwise preference ranking for watched titles
+- Binary rank insertion and calculated personal 1–10 scores
+- Compare screen inside the Add stack
+- Stored comparison history and ranking documentation

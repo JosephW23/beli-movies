@@ -8,6 +8,11 @@ type TitlesResponse = {
   total: number;
 };
 
+export type RatingSummary = {
+  average_score: number | null;
+  rating_count: number;
+};
+
 export async function searchTitles(
   query: string,
   signal?: AbortSignal
@@ -19,4 +24,11 @@ export async function searchTitles(
     signal,
   });
   return body.items;
+}
+
+export function getTitleRatingSummary(
+  titleId: number,
+  signal?: AbortSignal
+): Promise<RatingSummary> {
+  return apiRequest<RatingSummary>(`/titles/${titleId}/rating-summary`, { signal });
 }

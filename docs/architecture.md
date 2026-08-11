@@ -61,3 +61,11 @@ both sides of their friendship connections → Home renders `ActivityCard` rows.
 
 The social router owns HTTP validation and responses; `social_service.py` owns
 friend and feed queries; Home only displays feed data; Profile manages friends.
+
+## Day 8 Ranking Flow
+
+Mark Watched → comparison router → ranking service → comparison history and
+personal score tables. The Add stack owns `CompareScreen`; the discovery Search
+tab and social feed remain separate. The frontend sends only which displayed
+title was preferred, while candidate selection and binary rank insertion remain
+private backend behavior.

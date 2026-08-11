@@ -46,6 +46,8 @@ class FeedItemResponse(BaseModel):
     title: FeedTitleResponse
     status: EventType
     created_at: datetime
+    personal_rank: int | None
+    personal_score: float | None
 
 
 def _friend_response(user: User) -> FriendResponse:
@@ -107,6 +109,8 @@ def read_feed(
                 ),
                 status=row.status,
                 created_at=row.activity.created_at,
+                personal_rank=row.ranking.rank_position if row.ranking else None,
+                personal_score=row.ranking.score if row.ranking else None,
             )
         )
     return result

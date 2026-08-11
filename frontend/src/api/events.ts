@@ -14,6 +14,8 @@ export type SavedTitle = Title & {
   event_id: number;
   status: WatchStatus;
   saved_at: string;
+  personal_rank: number | null;
+  personal_score: number | null;
 };
 
 export type MyList = {

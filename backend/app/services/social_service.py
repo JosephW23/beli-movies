@@ -8,6 +8,7 @@ from app.models.activity import Activity
 from app.core.usernames import normalize_username
 from app.models.enums import EventType
 from app.models.friendship import Friendship
+from app.models.score import Score
 from app.models.title import Title
 from app.models.user import User
 
@@ -30,6 +31,7 @@ class FeedRow:
     user: User
     title: Title
     status: EventType
+    ranking: Score | None
 
 
 def _require_user_id(user: User) -> int:
@@ -99,20 +101,32 @@ def get_feed(session: Session, user: User, limit: int = 30) -> list[FeedRow]:
     user_id = _require_user_id(user)
     feed_user_ids = {user_id, *(friend.id for friend in get_friends(session, user) if friend.id)}
     rows = session.exec(
-        select(Activity, User, Title)
+        select(Activity, User, Title, Score)
         .join(User, Activity.user_id == User.id)
         .join(Title, Activity.title_id == Title.id)
+        .outerjoin(
+            Score,
+            (Score.user_id == Activity.user_id) & (Score.title_id == Activity.title_id),
+        )
         .where(Activity.user_id.in_(feed_user_ids))
         .order_by(Activity.created_at.desc())
         .limit(limit)
     ).all()
 
     feed: list[FeedRow] = []
-    for activity, actor, title in rows:
+    for activity, actor, title, ranking in rows:
         try:
             metadata = json.loads(activity.metadata_json or "{}")
             status = EventType(metadata["status"])
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
             continue
-        feed.append(FeedRow(activity=activity, user=actor, title=title, status=status))
+        feed.append(
+            FeedRow(
+                activity=activity,
+                user=actor,
+                title=title,
+                status=status,
+                ranking=ranking,
+            )
+        )
     return feed
