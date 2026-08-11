@@ -101,6 +101,31 @@ Never commit either `.env` file. They are ignored by Git; the tracked
 
 Implementation details are in [`docs/performance.md`](docs/performance.md).
 
+## Testing
+
+Run the complete backend test suite with:
+
+```bash
+cd backend
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest
+```
+
+The tests use an isolated in-memory SQLite database, mocked authentication, and
+fixed TMDb catalog responses. They do not use a real Supabase account, JWT, TMDb
+token, or production data. Current coverage focuses on:
+
+- authenticated and unauthorized protected routes;
+- event creation, all watch statuses, My List grouping, and user isolation;
+- pairwise ranking placement and deterministic personal 1–10 scoring;
+- ranking validation and score ordering;
+- deterministic recommendations, reason strings, interaction exclusions, and limits;
+- pagination and other core service regressions.
+
+This is focused coverage for important backend behavior, not complete line
+coverage.
+
 ## Screenshots
 
 | Home | Add | Search | Profile |

@@ -71,17 +71,25 @@ class RecommendationServiceTests(unittest.TestCase):
             type="movie",
             year=2017,
         )
+        watching_candidate = Title(
+            tmdb_id=1000,
+            name="Currently Watching",
+            type="movie",
+            year=2023,
+        )
         session.add(user)
         session.add(dune)
         session.add(interstellar)
         session.add(saved_candidate)
+        session.add(watching_candidate)
         session.commit()
-        for item in (user, dune, interstellar, saved_candidate):
+        for item in (user, dune, interstellar, saved_candidate, watching_candidate):
             session.refresh(item)
 
         session.add(Event(user_id=user.id, title_id=dune.id, event_type=EventType.WATCHED))  # type: ignore[arg-type]
         session.add(Event(user_id=user.id, title_id=interstellar.id, event_type=EventType.WATCHED))  # type: ignore[arg-type]
         session.add(Event(user_id=user.id, title_id=saved_candidate.id, event_type=EventType.WANT))  # type: ignore[arg-type]
+        session.add(Event(user_id=user.id, title_id=watching_candidate.id, event_type=EventType.WATCHING))  # type: ignore[arg-type]
         session.add(Score(user_id=user.id, title_id=dune.id, rank_position=1, score=9.2))  # type: ignore[arg-type]
         session.add(Score(user_id=user.id, title_id=interstellar.id, rank_position=2, score=8.8))  # type: ignore[arg-type]
         session.commit()
@@ -110,6 +118,7 @@ class RecommendationServiceTests(unittest.TestCase):
         catalog.discovery["movie"] = [
             external_title(438631, "Dune", [878, 12], 100),
             external_title(335984, "Blade Runner 2049", [878, 12], 95),
+            external_title(1000, "Currently Watching", [878, 12], 90),
             external_title(286217, "The Martian", [878, 18, 12], 70),
             external_title(264660, "Ex Machina", [878, 18], 65),
             external_title(999, "Unrelated Romance", [10749], 500),
@@ -125,6 +134,24 @@ class RecommendationServiceTests(unittest.TestCase):
             self.assertNotIn(438631, ids)
             self.assertNotIn(157336, ids)
             self.assertNotIn(335984, ids)
+            self.assertNotIn(1000, ids)
+
+    def test_same_inputs_return_the_same_order_and_respect_limit(self) -> None:
+        with Session(self.engine) as session:
+            user, catalog = self._seed_ranked_user(session)
+
+            first = get_recommendations(session, user, 2, catalog)
+            second = get_recommendations(session, user, 2, catalog)
+
+            self.assertEqual(
+                [item.title.name for item in first],
+                ["The Martian", "Ex Machina"],
+            )
+            self.assertEqual(
+                [item.title.name for item in first],
+                [item.title.name for item in second],
+            )
+            self.assertLessEqual(len(first), 2)
 
     def test_orders_genre_matches_and_returns_reasons(self) -> None:
         with Session(self.engine) as session:
