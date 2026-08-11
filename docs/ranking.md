@@ -1,8 +1,9 @@
 # Pairwise Ranking
 
-WATCHD builds a personal ordered list from simple pairwise preferences. A user
-never has to invent a numeric rating or interact with winner/loser language.
-They only answer: **Which title do you prefer?**
+WATCHD builds a personal ordered list from an enjoyment answer followed by
+simple pairwise preferences. A user never has to invent a numeric rating. The
+flow first asks **Did you enjoy the watch?** and then asks **Which title do you
+prefer?** when there are comparable titles in the same rating range.
 
 ## How a Title Enters the Ranking
 
@@ -10,20 +11,24 @@ Only titles marked `WATCHED` can be ranked. When a watched title does not have a
 personal ranking yet, the backend starts a ranking flow. Want-to-watch and
 currently-watching titles are never comparison candidates.
 
-The first watched title becomes rank `#1` immediately. With one existing ranked
-title, one comparison determines the new order. With larger lists, WATCHD uses
-binary insertion to determine the position with only a few comparisons.
+Marking a title watched does not assign a rating by itself. Choosing Yes keeps
+the eventual rating from 5.0–10.0; choosing No keeps it from 1.0–4.9. If that
+range has no existing titles, WATCHD starts the title at 7.5 for Yes or 3.5 for
+No. Otherwise, binary comparisons place it among titles in the same range.
 
 ## Candidate Selection and Narrowing
 
-The possible insertion range begins above the current `#1` title and below the
-last ranked title. WATCHD chooses the title near the middle of that range.
+The possible insertion range begins above the highest title and below the last
+title in the selected enjoyment range. WATCHD chooses the title near the middle
+of that range.
 
 - If the new title is preferred, its possible position moves above the
   comparison title.
 - If the existing title is preferred, its possible position moves below it.
-- Skip and Too Tough do not save a preference or change the range; the client
-  asks for another eligible candidate.
+- Skip asks for another eligible candidate without saving a preference.
+- Too Tough is neutral: the app first skips that matchup and asks about another
+  title. If no alternatives remain, WATCHD places the title near the middle of
+  the unresolved range without forcing it to equal either title.
 
 Saved comparison history reconstructs the range on every request, so a network
 failure does not erase progress. Once the upper and lower bounds meet, the exact
@@ -31,15 +36,25 @@ insertion position is known and the ranking is finalized.
 
 ## Personal Scores
 
-Rank position is the source of truth. WATCHD derives the visible 1–10 score from
-that position and recalculates scores after insertion. Rank `#1` receives 10.0;
-lower positions receive progressively lower values. The calculation keeps every
-higher-ranked title above every lower-ranked title.
+WATCHD calculates a one-decimal score only for the newly ranked title. It uses
+the scores immediately around the new placement, allowing values such as 7.5
+or 8.8 as well as equal scores. Existing personal scores are never recalculated
+when another title is added. Display rank positions may move as new titles are
+inserted, but the stored rating a user already received stays fixed.
 
-For smaller lists, the formula leaves room for future titles instead of
-stretching a two-title list from 10.0 to 1.0. For larger lists, it scales across
-the full 1–10 range. The algorithm is internal and can evolve without changing
-the preferred-title API contract.
+If the calculated score does not match how the user feels, the title detail
+menu can replace that one score with a manually entered value from 1.0–10.0.
+The override reorders display positions but never changes another title's
+stored score. Equal scores remain valid when a manual override or score
+calculation naturally produces one.
+
+## Reviews
+
+After a comparison finishes, the user can write a review or choose Not now.
+The title detail `•••` menu offers the same Write review/Edit review action
+later. A user has at most one review per watched title, and saving again edits
+that review. Profile displays the real review count and the user's saved review
+list.
 
 ## Storage
 

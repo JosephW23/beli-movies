@@ -211,6 +211,48 @@ Response:
 The result is `[]` when the user has no rankings. Filtered results receive
 sequential display ranks, so the highest-scored matching title is `#1`.
 
+Recommendations
+GET /me/recs
+
+Return personalized, unseen TMDb movie and TV recommendations for the current
+authenticated user.
+
+Headers:
+
+Authorization: Bearer <supabase-access-token>
+
+Query parameters:
+
+- `limit` — optional result limit from 1–50; defaults to 20
+
+Example:
+
+GET /me/recs?limit=20
+
+Response:
+
+[
+  {
+    "id": "movie:286217",
+    "tmdb_id": 286217,
+    "type": "movie",
+    "name": "The Martian",
+    "year": 2015,
+    "poster_url": "https://image.tmdb.org/t/p/w500/example.jpg",
+    "overview": "...",
+    "genre_ids": [18, 878, 12],
+    "genres": [],
+    "runtime_minutes": null,
+    "local_title_id": null,
+    "average_score": null,
+    "rating_count": 0,
+    "reason": "Because you liked Interstellar"
+  }
+]
+
+Watched, Want to Watch, and Currently Watching titles are excluded. Results are
+not saved locally until the user chooses a status from the title-detail screen.
+
 Friends
 POST /friends
 
@@ -303,16 +345,18 @@ Pairwise Ranking
 GET /compare/candidate
 
 Return the next pairwise comparison for a newly watched title. Authentication is
-required. `title_id` identifies the watched title being placed.
+required. `title_id` identifies the watched title being placed, and `enjoyed`
+selects the 5.0-and-above or below-5.0 rating range.
 
 Query parameters:
 
 - `title_id` (required)
-- `exclude_title_ids` (optional comma-separated IDs used by Skip/Too Tough)
+- `enjoyed` (required boolean)
+- `exclude_title_ids` (optional comma-separated IDs used for neutral/skip choices)
 
 Example:
 
-GET /compare/candidate?title_id=9
+GET /compare/candidate?title_id=9&enjoyed=true
 
 Response while ranking:
 
@@ -353,11 +397,46 @@ Request:
 {
   "title_id": 9,
   "comparison_title_id": 4,
-  "preferred_title_id": 9
+  "preferred_title_id": 9,
+  "enjoyed": true
 }
 
 The response uses the same shape as `GET /compare/candidate`: either the next
 comparison or the completed personal ranking.
+
+POST /compare/too-tough
+
+Finish a close comparison neutrally when no alternative candidates remain.
+WATCHD uses the unresolved ranking range instead of forcing the new title to
+equal or lose to the displayed title. The request includes `title_id`,
+`comparison_title_id`, and the same `enjoyed` answer used by the flow.
+
+Personal Scores and Reviews
+GET /me/titles/{title_id}
+
+Return the authenticated user's status, personal score, and optional review for
+one stored title.
+
+PATCH /me/titles/{title_id}/score
+
+Replace only this title's personal score. `score` must be from 1.0–10.0 and is
+stored with one decimal place.
+
+PUT /me/titles/{title_id}/review
+
+Create or update the authenticated user's review for a watched title. `body`
+must contain 1–1000 characters.
+
+GET /me/reviews
+
+Return the authenticated user's reviews newest-first with title, poster, year,
+and current personal score metadata.
+
+Paginated Discovery
+
+`GET /me/recs?limit=20&page=1` and `GET /search/trending?page=1` accept TMDb
+page numbers. Clients can append subsequent pages while removing duplicate
+title IDs.
 
 Validation errors:
 

@@ -17,7 +17,6 @@ from app.services.events_service import (
     create_event,
     get_user_list,
 )
-from app.services.ranking_service import start_ranking
 
 
 router = APIRouter(tags=["events"])
@@ -108,9 +107,6 @@ def save_event(
         )
     except TitleNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Title not found") from exc
-
-    if body.status == EventType.WATCHED:
-        start_ranking(session, current_user, body.title_id)
 
     return _event_response(event)
 

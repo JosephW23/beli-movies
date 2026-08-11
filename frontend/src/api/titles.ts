@@ -37,8 +37,11 @@ export function searchTmdbTitles(
   });
 }
 
-export function getTrendingTitles(signal?: AbortSignal): Promise<ExternalTitle[]> {
-  return apiRequest<ExternalTitle[]>("/search/trending", { signal });
+export function getTrendingTitles(
+  page = 1,
+  signal?: AbortSignal
+): Promise<ExternalTitle[]> {
+  return apiRequest<ExternalTitle[]>(`/search/trending?page=${page}`, { signal });
 }
 
 export function getTmdbTitleDetails(

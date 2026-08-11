@@ -4,14 +4,15 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import type { NavigatorScreenParams } from "@react-navigation/native";
 
-import HomeScreen from "../screens/HomeScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import HomeStack from "./HomeStack";
+import type { HomeStackParamList } from "./HomeStack";
 import SearchStack from "./SearchStack";
 import type { SearchStackParamList } from "./SearchStack";
 import { colors } from "../theme";
 
 export type AppTabsParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<HomeStackParamList> | undefined;
   Search: NavigatorScreenParams<SearchStackParamList> | undefined;
   Profile: undefined;
 };
@@ -42,7 +43,7 @@ export default function AppTabs() {
         };
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={HomeStack} />
       <Tab.Screen name="Search" component={SearchStack} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

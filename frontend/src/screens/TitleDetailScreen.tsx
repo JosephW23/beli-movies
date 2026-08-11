@@ -1,12 +1,16 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { saveTitleStatus } from "../api/events";
 import type { WatchStatus } from "../api/events";
+import { getPersonalTitle } from "../api/personal";
+import type { PersonalTitle } from "../api/personal";
 import {
   getTitleRatingSummary,
+  getStoredTitle,
   getTmdbTitleDetails,
   importTmdbTitle,
 } from "../api/titles";
@@ -38,6 +42,13 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
   const [ratingSummary, setRatingSummary] = useState<RatingSummary | null>(null);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState(false);
+  const [personal, setPersonal] = useState<PersonalTitle | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const localTitleId = useMemo(() => {
+    if (!isExternalTitle(displayTitle)) return displayTitle.id;
+    return displayTitle.local_title_id;
+  }, [displayTitle]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,6 +76,61 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
       });
     return () => controller.abort();
   }, [title]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!token || !localTitleId) {
+        setPersonal(null);
+        return;
+      }
+      const controller = new AbortController();
+      void Promise.all([
+        getPersonalTitle(token, localTitleId, controller.signal),
+        getTitleRatingSummary(localTitleId, controller.signal),
+      ]).then(([nextPersonal, summary]) => {
+        setPersonal(nextPersonal);
+        setRatingSummary(summary);
+      }).catch(() => {
+        if (!controller.signal.aborted) setPersonal(null);
+      });
+      return () => controller.abort();
+    }, [localTitleId, token])
+  );
+
+  async function resolveLocalTitle(): Promise<Title> {
+    if (!isExternalTitle(displayTitle)) return displayTitle;
+    if (!displayTitle.local_title_id) {
+      throw new Error("Mark this title as watched and finish rating it first.");
+    }
+    return getStoredTitle(displayTitle.local_title_id);
+  }
+
+  async function openScoreEditor() {
+    setIsMenuOpen(false);
+    if (personal?.personal_score == null) {
+      setError("Mark this title as watched and finish rating it before changing its score.");
+      return;
+    }
+    try {
+      const localTitle = await resolveLocalTitle();
+      navigation.navigate("EditScore", { title: localTitle, currentScore: personal.personal_score });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not open score editor.");
+    }
+  }
+
+  async function openReviewEditor() {
+    setIsMenuOpen(false);
+    if (personal?.status !== "WATCHED") {
+      setError("Mark this title as watched before writing a review.");
+      return;
+    }
+    try {
+      navigation.navigate("WriteReview", { title: await resolveLocalTitle() });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not open review editor.");
+    }
+  }
 
   async function saveStatus(status: WatchStatus) {
     if (!token) return;
@@ -99,6 +165,11 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
           leading={
             <Pressable onPress={navigation.goBack} hitSlop={12}>
               <Text style={styles.back}>‹</Text>
+            </Pressable>
+          }
+          trailing={
+            <Pressable onPress={() => setIsMenuOpen(true)} hitSlop={12} style={styles.moreButton}>
+              <Text style={styles.moreText}>•••</Text>
             </Pressable>
           }
         />
@@ -153,6 +224,16 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
           )}
         </View>
 
+        {personal?.personal_score != null ? (
+          <View style={styles.yourRating}>
+            <View>
+              <Text style={styles.yourRatingLabel}>Your score</Text>
+              <Text style={styles.yourRatingHint}>Use ••• to change it or write a review</Text>
+            </View>
+            <Text style={styles.yourRatingScore}>{personal.personal_score.toFixed(1)}</Text>
+          </View>
+        ) : null}
+
         <Text style={styles.sectionTitle}>Add to your list</Text>
         <View style={styles.actions}>
           {ACTIONS.map((action) => {
@@ -183,6 +264,34 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
         {success ? <Text style={styles.success}>✓ {success}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
+
+      <Modal
+        visible={isMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsMenuOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsMenuOpen(false)}>
+          <View style={styles.actionSheet}>
+            <Text style={styles.sheetTitle}>{displayTitle.name}</Text>
+            <Pressable style={styles.sheetAction} onPress={() => void openScoreEditor()}>
+              <Text style={styles.sheetActionText}>Change score</Text>
+              <Text style={styles.sheetActionMeta}>
+                {personal?.personal_score != null ? personal.personal_score.toFixed(1) : "Rate first"}
+              </Text>
+            </Pressable>
+            <Pressable style={styles.sheetAction} onPress={() => void openReviewEditor()}>
+              <Text style={styles.sheetActionText}>
+                {personal?.review ? "Edit review" : "Write review"}
+              </Text>
+              <Text style={styles.sheetChevron}>›</Text>
+            </Pressable>
+            <Pressable style={styles.cancelAction} onPress={() => setIsMenuOpen(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -192,6 +301,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, paddingBottom: 28 },
   back: { color: colors.ink, fontSize: 32, lineHeight: 28, marginRight: 8 },
+  moreButton: { minWidth: 42, minHeight: 34, alignItems: "center", justifyContent: "center" },
+  moreText: { color: colors.ink, fontSize: 19, fontWeight: "900", letterSpacing: 1 },
   selectedCard: {
     flexDirection: "row",
     backgroundColor: colors.surface,
@@ -231,6 +342,21 @@ const styles = StyleSheet.create({
   ratingLabel: { color: colors.ink, fontSize: 14, fontWeight: "800" },
   ratingCaption: { color: "#707070", fontSize: 11, marginTop: 3 },
   averageScore: { color: colors.ink, fontSize: 24, fontWeight: "900", marginLeft: 12 },
+  yourRating: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.ink,
+    borderRadius: radii.card,
+    paddingHorizontal: 13,
+    marginTop: -10,
+    marginBottom: 20,
+  },
+  yourRatingLabel: { color: colors.ink, fontSize: 14, fontWeight: "800" },
+  yourRatingHint: { color: "#707070", fontSize: 11, marginTop: 3 },
+  yourRatingScore: { color: colors.ink, fontSize: 23, fontWeight: "900" },
   sectionTitle: { color: colors.ink, fontSize: 17, fontWeight: "800", marginBottom: 11 },
   actions: { gap: 8 },
   actionButton: {
@@ -249,4 +375,38 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.55 },
   success: { color: colors.success, fontSize: 12, textAlign: "center", marginTop: 16 },
   error: { color: colors.error, fontSize: 12, textAlign: "center", marginTop: 16 },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(17,17,17,0.28)",
+    padding: 12,
+  },
+  actionSheet: {
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    padding: 10,
+    paddingBottom: 14,
+  },
+  sheetTitle: { color: "#707070", fontSize: 12, textAlign: "center", paddingVertical: 10 },
+  sheetAction: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingHorizontal: 12,
+  },
+  sheetActionText: { color: colors.ink, fontSize: 16, fontWeight: "700" },
+  sheetActionMeta: { color: "#707070", fontSize: 14, fontWeight: "700" },
+  sheetChevron: { color: "#707070", fontSize: 24 },
+  cancelAction: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.control,
+    backgroundColor: colors.ink,
+    marginTop: 9,
+  },
+  cancelText: { color: colors.background, fontSize: 14, fontWeight: "800" },
 });

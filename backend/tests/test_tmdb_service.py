@@ -8,6 +8,23 @@ from app.services.tmdb_service import TmdbService, get_image_url
 class TmdbServiceTests(unittest.TestCase):
     def setUp(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/discover/movie"):
+                return httpx.Response(
+                    200,
+                    json={
+                        "results": [
+                            {
+                                "id": 286217,
+                                "title": "The Martian",
+                                "release_date": "2015-09-30",
+                                "poster_path": "/the-martian.jpg",
+                                "genre_ids": [18, 878, 12],
+                                "popularity": 88.5,
+                                "vote_average": 7.7,
+                            }
+                        ]
+                    },
+                )
             if request.url.path.endswith("/trending/all/week"):
                 return httpx.Response(
                     200,
@@ -120,6 +137,13 @@ class TmdbServiceTests(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].name, "Interstellar")
         self.assertIsNotNone(results[0].poster_url)
+
+    def test_discover_normalizes_genre_candidates(self) -> None:
+        results = self.service.discover_titles("movie", [878, 12])
+
+        self.assertEqual(results[0].name, "The Martian")
+        self.assertEqual(results[0].genre_ids, [18, 878, 12])
+        self.assertEqual(results[0].popularity, 88.5)
 
 
 if __name__ == "__main__":

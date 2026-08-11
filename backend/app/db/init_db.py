@@ -12,6 +12,7 @@ from app.models.comparison import Comparison  # noqa: F401
 from app.models.score import Score  # noqa: F401
 from app.models.friendship import Friendship  # noqa: F401
 from app.models.activity import Activity  # noqa: F401
+from app.models.review import Review  # noqa: F401
 
 
 def init_db() -> None:
@@ -122,25 +123,6 @@ def init_db() -> None:
                 text(
                     "CREATE INDEX IF NOT EXISTS ix_comparison_new_title_id "
                     "ON comparison (new_title_id)"
-                )
-            )
-            connection.execute(
-                text(
-                    """
-                    WITH totals AS (
-                      SELECT user_id, COUNT(*) AS total
-                      FROM score
-                      GROUP BY user_id
-                    )
-                    UPDATE score
-                    SET score = ROUND(GREATEST(
-                      1.0,
-                      10.0 - (9.0 * (score.rank_position - 1) /
-                        GREATEST(totals.total - 1, 9))
-                    )::numeric, 1)::double precision
-                    FROM totals
-                    WHERE score.user_id = totals.user_id
-                    """
                 )
             )
             connection.execute(

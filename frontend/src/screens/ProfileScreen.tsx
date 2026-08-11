@@ -16,6 +16,8 @@ import type { MyList } from "../api/events";
 import { getMe } from "../api/me";
 import type { CurrentUser } from "../api/me";
 import { getMyRankings } from "../api/ranking";
+import { getMyReviews } from "../api/personal";
+import type { Review } from "../api/personal";
 import { getStoredTitle } from "../api/titles";
 import { addFriend, getFriends } from "../api/social";
 import type { SocialUser } from "../api/social";
@@ -51,20 +53,23 @@ export default function ProfileScreen({ navigation }: Props) {
   const [isRankingsLoading, setIsRankingsLoading] = useState(true);
   const [rankingsError, setRankingsError] = useState<string | null>(null);
   const [listFilter, setListFilter] = useState<ListFilter>("want");
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   const loadProfile = useCallback(
     async (signal?: AbortSignal) => {
       if (!token) return;
       setIsProfileLoading(true);
       try {
-        const [currentUser, list, currentFriends] = await Promise.all([
+        const [currentUser, list, currentFriends, currentReviews] = await Promise.all([
           getMe(token, signal),
           getMyList(token, signal),
           getFriends(token, signal),
+          getMyReviews(token, signal),
         ]);
         setUser(currentUser);
         setMyList(list);
         setFriends(currentFriends);
+        setReviews(currentReviews);
         setProfileError(null);
       } catch (requestError) {
         if (!signal?.aborted) {
@@ -218,7 +223,7 @@ export default function ProfileScreen({ navigation }: Props) {
           {[
             [myList.watched.length, "Watched"],
             [myList.want_to_watch.length, "Want"],
-            [0, "Reviews"],
+            [reviews.length, "Reviews"],
             [friends.length, "Friends"],
           ].map(([value, label], index) => (
             <React.Fragment key={label}>
@@ -364,8 +369,38 @@ export default function ProfileScreen({ navigation }: Props) {
           success={friendSuccess}
         />
 
+        <Text style={styles.sectionTitle}>Your Reviews</Text>
+        {reviews.length ? (
+          <View style={styles.reviewsCard}>
+            {reviews.map((review, index) => (
+              <Pressable
+                key={review.id}
+                onPress={() => void openStoredTitle(review.title_id)}
+                style={({ pressed }) => [
+                  styles.reviewRow,
+                  index < reviews.length - 1 && styles.reviewDivider,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <TitlePoster name={review.title_name} posterUrl={review.poster_url} width={44} height={64} />
+                <View style={styles.reviewCopy}>
+                  <View style={styles.reviewHeading}>
+                    <Text style={styles.reviewTitle} numberOfLines={1}>{review.title_name}</Text>
+                    {review.score != null ? <Text style={styles.reviewScore}>{review.score.toFixed(1)}</Text> : null}
+                  </View>
+                  <Text style={styles.reviewBody} numberOfLines={3}>{review.body}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.topEmpty}>
+            <Text style={styles.topEmptyText}>Your written reviews will appear here.</Text>
+          </View>
+        )}
+
         <View style={styles.menu}>
-          {["Your Reviews", "Activity", "Account"].map((item) => (
+          {["Activity", "Account"].map((item) => (
             <View key={item} style={styles.menuRow}>
               <Text style={styles.menuText}>{item}</Text>
               <Text style={styles.chevron}>›</Text>
@@ -531,6 +566,21 @@ const styles = StyleSheet.create({
   },
   rankingsErrorText: { color: colors.error, fontSize: 12 },
   rankingsRetry: { color: colors.error, fontSize: 12, fontWeight: "800", marginTop: 3 },
+  reviewsCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    backgroundColor: colors.surface,
+    marginTop: 9,
+    overflow: "hidden",
+  },
+  reviewRow: { flexDirection: "row", padding: 11 },
+  reviewDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  reviewCopy: { flex: 1, marginLeft: 11 },
+  reviewHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  reviewTitle: { flex: 1, color: colors.ink, fontSize: 14, fontWeight: "800", marginRight: 8 },
+  reviewScore: { color: colors.ink, fontSize: 14, fontWeight: "900" },
+  reviewBody: { color: "#5F5A55", fontSize: 12, lineHeight: 17, marginTop: 5 },
   menu: {
     borderWidth: 1,
     borderColor: colors.border,

@@ -88,9 +88,10 @@ def search_external_titles(
 @router.get("/trending", response_model=list[ExternalTitleResponse])
 def read_trending_titles(
     session: Annotated[Session, Depends(get_session)],
+    page: Annotated[int, Query(ge=1, le=500)] = 1,
 ) -> list[ExternalTitleResponse]:
     try:
-        results = TmdbService().get_trending_titles()
+        results = TmdbService().get_trending_titles(page)
     except (TmdbConfigurationError, TmdbUnavailableError, TmdbNotFoundError) as exc:
         raise _tmdb_error(exc) from exc
 

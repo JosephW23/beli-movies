@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -11,7 +11,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getComparisonCandidate, savePreference } from "../api/ranking";
+import { getComparisonCandidate, savePreference, saveTooTough } from "../api/ranking";
 import { useAuth } from "../auth/AuthContext";
 import BrandLogo from "../components/BrandLogo";
 import TitlePoster from "../components/TitlePoster";
@@ -25,9 +25,10 @@ type Props = NativeStackScreenProps<SearchStackParamList, "Compare">;
 export default function CompareScreen({ navigation, route }: Props) {
   const { token } = useAuth();
   const { width } = useWindowDimensions();
+  const [enjoyed, setEnjoyed] = useState<boolean | null>(null);
   const [progress, setProgress] = useState<RankingProgress | null>(null);
   const [excludedIds, setExcludedIds] = useState<number[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +37,11 @@ export default function CompareScreen({ navigation, route }: Props) {
   const posterHeight = Math.round(posterWidth * 1.48);
 
   const loadCandidate = useCallback(
-    async (nextExcludedIds: number[] = [], signal?: AbortSignal) => {
+    async (
+      didEnjoy: boolean,
+      nextExcludedIds: number[] = [],
+      signal?: AbortSignal
+    ) => {
       if (!token) return;
       setIsLoading(true);
       setError(null);
@@ -44,6 +49,7 @@ export default function CompareScreen({ navigation, route }: Props) {
         const next = await getComparisonCandidate(
           token,
           route.params.title.id,
+          didEnjoy,
           nextExcludedIds,
           signal
         );
@@ -63,15 +69,17 @@ export default function CompareScreen({ navigation, route }: Props) {
     [route.params.title.id, token]
   );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadCandidate([], controller.signal);
-    return () => controller.abort();
-  }, [loadCandidate]);
+  function answerEnjoyment(didEnjoy: boolean) {
+    if (isLoading || isSubmitting) return;
+    setEnjoyed(didEnjoy);
+    setProgress(null);
+    setExcludedIds([]);
+    void loadCandidate(didEnjoy);
+  }
 
   async function choose(preferredTitleId: number) {
     const comparisonTitle = progress?.comparison_title;
-    if (!token || !comparisonTitle || isSubmitting) return;
+    if (!token || !comparisonTitle || enjoyed === null || isSubmitting) return;
     setIsSubmitting(true);
     setError(null);
     try {
@@ -79,7 +87,8 @@ export default function CompareScreen({ navigation, route }: Props) {
         token,
         progress.new_title.id,
         comparisonTitle.id,
-        preferredTitleId
+        preferredTitleId,
+        enjoyed
       );
       setProgress(next);
       setExcludedIds([]);
@@ -97,9 +106,45 @@ export default function CompareScreen({ navigation, route }: Props) {
   function skipComparison() {
     const comparisonId = progress?.comparison_title?.id;
     if (!comparisonId || isLoading || isSubmitting) return;
+    if (excludedIds.length + 1 >= progress.total_ranked) {
+      setError("No other titles are available. Choose one or tap Too tough.");
+      return;
+    }
     const nextExcluded = [...excludedIds, comparisonId];
     setExcludedIds(nextExcluded);
-    void loadCandidate(nextExcluded);
+    if (enjoyed !== null) void loadCandidate(enjoyed, nextExcluded);
+  }
+
+  async function chooseTooTough() {
+    const comparisonTitle = progress?.comparison_title;
+    if (!token || !comparisonTitle || enjoyed === null || isSubmitting) return;
+    if (excludedIds.length + 1 < progress.total_ranked) {
+      const nextExcluded = [...excludedIds, comparisonTitle.id];
+      setExcludedIds(nextExcluded);
+      void loadCandidate(enjoyed, nextExcluded);
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      setProgress(
+        await saveTooTough(
+          token,
+          progress.new_title.id,
+          comparisonTitle.id,
+          enjoyed
+        )
+      );
+      setExcludedIds([]);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not save close comparison."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const dots = useMemo(
@@ -122,33 +167,56 @@ export default function CompareScreen({ navigation, route }: Props) {
           <View style={styles.headerButton} />
         </View>
 
-        {isLoading && !progress ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator color={colors.ink} />
-            <Text style={styles.stateText}>Preparing your comparisons…</Text>
-          </View>
+        {enjoyed === null ? (
+          <>
+            <WatchedTitleCard
+              title={route.params.title}
+              onClose={() => navigation.navigate("SearchHome")}
+            />
+            <View style={styles.enjoymentCard}>
+              <Text style={styles.enjoymentQuestion}>Did you enjoy the WATCHD?</Text>
+              <View style={styles.enjoymentActions}>
+                <Pressable
+                  onPress={() => answerEnjoyment(true)}
+                  style={({ pressed }) => [styles.yesButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.yesButtonText}>Yes</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => answerEnjoyment(false)}
+                  style={({ pressed }) => [styles.noButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.noButtonText}>No</Text>
+                </Pressable>
+              </View>
+            </View>
+          </>
+        ) : isLoading && !progress ? (
+          <>
+            <WatchedTitleCard
+              title={route.params.title}
+              onClose={() => navigation.navigate("SearchHome")}
+            />
+            <View style={styles.centerState}>
+              <ActivityIndicator color={colors.ink} />
+              <Text style={styles.stateText}>Preparing your comparisons…</Text>
+            </View>
+          </>
         ) : progress?.complete ? (
           <CompletionCard
             progress={progress}
-            onDone={() => navigation.popToTop()}
+            onDone={() => navigation.navigate("SearchHome")}
+            onReview={() => navigation.navigate("WriteReview", {
+              title: route.params.title,
+              finishFlow: true,
+            })}
           />
         ) : progress?.comparison_title ? (
           <>
-            <View style={styles.watchedCard}>
-              <TitlePoster
-                name={progress.new_title.name}
-                posterUrl={progress.new_title.poster_url}
-                width={58}
-                height={84}
-              />
-              <View style={styles.watchedCopy}>
-                <Text style={styles.watchedTitle}>{progress.new_title.name}</Text>
-                <Text style={styles.metadata}>{titleMetadata(progress.new_title)}</Text>
-              </View>
-              <Pressable onPress={() => navigation.popToTop()} hitSlop={10} style={styles.closeButton}>
-                <Text style={styles.close}>×</Text>
-              </Pressable>
-            </View>
+            <WatchedTitleCard
+              title={progress.new_title}
+              onClose={() => navigation.navigate("SearchHome")}
+            />
 
             <Text style={styles.question}>Which do you prefer?</Text>
             <Text style={styles.helper}>
@@ -197,7 +265,7 @@ export default function CompareScreen({ navigation, route }: Props) {
                 <Text style={styles.secondaryAction}>‹ Back</Text>
               </Pressable>
               <Pressable
-                onPress={skipComparison}
+                onPress={() => void chooseTooTough()}
                 disabled={isLoading || isSubmitting}
                 style={({ pressed }) => [styles.toughButton, pressed && styles.pressed]}
               >
@@ -220,7 +288,10 @@ export default function CompareScreen({ navigation, route }: Props) {
         ) : null}
 
         {error ? (
-          <Pressable style={styles.errorCard} onPress={() => void loadCandidate(excludedIds)}>
+          <Pressable
+            style={styles.errorCard}
+            onPress={() => enjoyed !== null && void loadCandidate(enjoyed, excludedIds)}
+          >
             <Text style={styles.errorText}>{error}</Text>
             <Text style={styles.retryText}>Tap to retry</Text>
           </Pressable>
@@ -231,11 +302,39 @@ export default function CompareScreen({ navigation, route }: Props) {
         <View style={styles.footer}>
           <Text style={styles.sparkle}>✧</Text>
           <Text style={styles.footerText}>
-            We’ll calculate your rating after a few quick comparisons.
+            {enjoyed === null
+              ? "Log it your way."
+              : "We’ll calculate your rating after a few quick comparisons."}
           </Text>
         </View>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+function WatchedTitleCard({
+  title,
+  onClose,
+}: {
+  title: ComparisonTitle;
+  onClose: () => void;
+}) {
+  return (
+    <View style={styles.watchedCard}>
+      <TitlePoster
+        name={title.name}
+        posterUrl={title.poster_url}
+        width={58}
+        height={84}
+      />
+      <View style={styles.watchedCopy}>
+        <Text style={styles.watchedTitle}>{title.name}</Text>
+        <Text style={styles.metadata}>{titleMetadata(title)}</Text>
+      </View>
+      <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton}>
+        <Text style={styles.close}>×</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -277,7 +376,15 @@ function TitleChoice({
   );
 }
 
-function CompletionCard({ progress, onDone }: { progress: RankingProgress; onDone: () => void }) {
+function CompletionCard({
+  progress,
+  onDone,
+  onReview,
+}: {
+  progress: RankingProgress;
+  onDone: () => void;
+  onReview: () => void;
+}) {
   return (
     <View style={styles.completeContent}>
       <View style={styles.successMark}><Text style={styles.successMarkText}>✓</Text></View>
@@ -292,8 +399,12 @@ function CompletionCard({ progress, onDone }: { progress: RankingProgress; onDon
       <Text style={styles.ratingLabel}>Your rating</Text>
       <Text style={styles.score}>{progress.score?.toFixed(1)}</Text>
       <Text style={styles.rank}>#{progress.rank_position} in your rankings</Text>
-      <Pressable onPress={onDone} style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}>
-        <Text style={styles.doneText}>Done</Text>
+      <Text style={styles.reviewPrompt}>Want to say more?</Text>
+      <Pressable onPress={onReview} style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}>
+        <Text style={styles.doneText}>Write a review</Text>
+      </Pressable>
+      <Pressable onPress={onDone} style={styles.notNowButton}>
+        <Text style={styles.notNowText}>Not now</Text>
       </Pressable>
     </View>
   );
@@ -335,6 +446,41 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   close: { color: colors.ink, fontSize: 24, lineHeight: 25 },
+  enjoymentCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    padding: 18,
+    marginTop: 20,
+  },
+  enjoymentQuestion: {
+    color: colors.ink,
+    fontSize: 23,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  enjoymentActions: { flexDirection: "row", gap: 10, marginTop: 22 },
+  yesButton: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.control,
+    backgroundColor: colors.ink,
+  },
+  yesButtonText: { color: colors.background, fontSize: 16, fontWeight: "800" },
+  noButton: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.ink,
+    borderRadius: radii.control,
+    backgroundColor: colors.surface,
+  },
+  noButtonText: { color: colors.ink, fontSize: 16, fontWeight: "800" },
   question: { color: colors.ink, fontSize: 22, fontWeight: "800", marginTop: 24 },
   helper: { color: "#707070", fontSize: 13, lineHeight: 19, marginTop: 5, marginBottom: 12 },
   choices: { flexDirection: "row", justifyContent: "space-between", position: "relative" },
@@ -408,7 +554,10 @@ const styles = StyleSheet.create({
   ratingLabel: { color: "#707070", fontSize: 14, marginTop: 20 },
   score: { color: colors.ink, fontSize: 58, lineHeight: 66, fontWeight: "900" },
   rank: { color: colors.ink, fontSize: 15, fontWeight: "700", marginTop: 2 },
-  doneButton: { width: "100%", minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radii.control, backgroundColor: colors.ink, marginTop: 28 },
+  reviewPrompt: { color: colors.ink, fontSize: 16, fontWeight: "800", marginTop: 24 },
+  doneButton: { width: "100%", minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radii.control, backgroundColor: colors.ink, marginTop: 12 },
   doneText: { color: colors.background, fontSize: 15, fontWeight: "800" },
+  notNowButton: { minHeight: 42, alignItems: "center", justifyContent: "center" },
+  notNowText: { color: "#707070", fontSize: 14, fontWeight: "700" },
   pressed: { opacity: 0.7 },
 });

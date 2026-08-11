@@ -9,9 +9,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  global: {
-    fetch: (...args) => fetch(...(args as [RequestInfo, RequestInit?])),
-  },
   auth: {
     detectSessionInUrl: false,
     persistSession: true,

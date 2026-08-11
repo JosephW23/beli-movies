@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { clearLegacyToken } from "../lib/token";
+import { clearLegacyToken, clearPersistedSupabaseSession } from "../lib/token";
 import { usernameFromFullName } from "../lib/username";
 
 type AuthContextValue = {
@@ -41,11 +41,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function restore() {
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const { data, error: sessionError } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Session restore timed out")), 8000);
+          }),
+        ]);
         if (sessionError) throw sessionError;
         if (isMounted) setToken(data.session?.access_token ?? null);
       } catch (e) {
-        if (isMounted) setError("Failed to restore session.");
+        await clearPersistedSupabaseSession();
+        if (isMounted) {
+          setToken(null);
+          setError("Your session expired. Please sign in again.");
+        }
       } finally {
         if (isMounted) setIsRestoring(false);
       }
@@ -62,6 +71,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setIsLoading(true);
     try {
+      // A failed refresh can leave an expired chunked session on a development
+      // device. Clear only that stale session before creating the new one.
+      await clearPersistedSupabaseSession();
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

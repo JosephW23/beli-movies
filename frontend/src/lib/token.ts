@@ -61,3 +61,11 @@ export const supabaseStorage = {
 export async function clearLegacyToken() {
   await SecureStore.deleteItemAsync(LEGACY_ACCESS_TOKEN_KEY);
 }
+
+export async function clearPersistedSupabaseSession() {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return;
+  const projectRef = supabaseUrl.replace(/^https?:\/\//, "").split(".")[0];
+  if (!projectRef) return;
+  await removeChunkedValue(`sb-${projectRef}-auth-token`);
+}

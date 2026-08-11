@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+import type { DimensionValue } from "react-native";
 
 type Props = {
   name: string;
   posterUrl: string | null;
-  width?: number;
-  height?: number;
+  width?: DimensionValue;
+  height?: DimensionValue;
 };
 
 export default function TitlePoster({

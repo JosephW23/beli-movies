@@ -15,6 +15,7 @@ from app.services.ranking_service import (
     TitleNotWatchedError,
     get_next_comparison,
     record_preference,
+    record_too_tough,
 )
 
 
@@ -44,18 +45,28 @@ class PreferenceCreate(BaseModel):
     title_id: int = Field(gt=0)
     comparison_title_id: int = Field(gt=0)
     preferred_title_id: int = Field(gt=0)
+    enjoyed: bool
+
+
+class TooToughCreate(BaseModel):
+    title_id: int = Field(gt=0)
+    comparison_title_id: int = Field(gt=0)
+    enjoyed: bool
 
 
 @router.get("/candidate", response_model=ComparisonResponse)
 def read_comparison_candidate(
     title_id: Annotated[int, Query(gt=0)],
+    enjoyed: Annotated[bool, Query()],
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
     exclude_title_ids: str | None = Query(default=None),
 ) -> ComparisonResponse:
     excluded = _parse_excluded_ids(exclude_title_ids)
     try:
-        progress = get_next_comparison(session, current_user, title_id, excluded)
+        progress = get_next_comparison(
+            session, current_user, title_id, enjoyed, excluded
+        )
     except RankingTitleNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Title not found") from exc
     except TitleNotWatchedError as exc:
@@ -76,6 +87,30 @@ def create_preference(
             title_id=body.title_id,
             comparison_title_id=body.comparison_title_id,
             preferred_title_id=body.preferred_title_id,
+            enjoyed=body.enjoyed,
+        )
+    except RankingTitleNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Title not found") from exc
+    except TitleNotWatchedError as exc:
+        raise HTTPException(status_code=409, detail="Title must be watched before ranking") from exc
+    except InvalidComparisonError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return _response(progress)
+
+
+@router.post("/too-tough", response_model=ComparisonResponse)
+def create_too_tough_placement(
+    body: TooToughCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> ComparisonResponse:
+    try:
+        progress = record_too_tough(
+            session=session,
+            user=current_user,
+            title_id=body.title_id,
+            comparison_title_id=body.comparison_title_id,
+            enjoyed=body.enjoyed,
         )
     except RankingTitleNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Title not found") from exc

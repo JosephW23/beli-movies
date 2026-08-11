@@ -39,6 +39,8 @@ class TmdbTitle:
     genre_ids: list[int] = field(default_factory=list)
     genres: list[str] = field(default_factory=list)
     runtime_minutes: int | None = None
+    popularity: float = 0.0
+    vote_average: float = 0.0
 
 
 def get_image_url(poster_path: str | None) -> str | None:
@@ -140,10 +142,10 @@ class TmdbService:
                 titles.append(normalized)
         return titles
 
-    def get_trending_titles(self) -> list[TmdbTitle]:
+    def get_trending_titles(self, page: int = 1) -> list[TmdbTitle]:
         payload = self._request(
             "/trending/all/week",
-            {"language": "en-US", "page": 1},
+            {"language": "en-US", "page": page},
         )
         results = payload.get("results")
         if not isinstance(results, list):
@@ -158,6 +160,35 @@ class TmdbService:
             if normalized is not None:
                 titles.append(normalized)
         return titles
+
+    def discover_titles(
+        self,
+        media_type: MediaType,
+        genre_ids: list[int],
+        page: int = 1,
+    ) -> list[TmdbTitle]:
+        params: dict[str, object] = {
+            "include_adult": "false",
+            "language": "en-US",
+            "page": page,
+            "sort_by": "popularity.desc",
+            "vote_count.gte": 50,
+        }
+        if media_type == "movie":
+            params["include_video"] = "false"
+        if genre_ids:
+            params["with_genres"] = "|".join(str(value) for value in genre_ids)
+
+        payload = self._request(f"/discover/{media_type}", params)
+        results = payload.get("results")
+        if not isinstance(results, list):
+            return []
+        return [
+            normalized
+            for item in results
+            if isinstance(item, dict)
+            and (normalized := self._normalize(item, media_type)) is not None
+        ]
 
     def get_title_details(self, media_type: MediaType, tmdb_id: int) -> TmdbTitle:
         payload = self._request(f"/{media_type}/{tmdb_id}", {"language": "en-US"})
@@ -204,6 +235,8 @@ class TmdbService:
                 )
 
         overview = item.get("overview")
+        popularity = item.get("popularity")
+        vote_average = item.get("vote_average")
         return TmdbTitle(
             tmdb_id=tmdb_id,
             type=media_type,
@@ -214,4 +247,6 @@ class TmdbService:
             genre_ids=genre_ids,
             genres=genres,
             runtime_minutes=runtime,
+            popularity=float(popularity) if isinstance(popularity, (int, float)) else 0.0,
+            vote_average=float(vote_average) if isinstance(vote_average, (int, float)) else 0.0,
         )

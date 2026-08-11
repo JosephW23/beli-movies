@@ -40,10 +40,11 @@ class RankingProgress:
     total_ranked: int = 0
 
 
-def calculate_score(rank_position: int, total_ranked: int) -> float:
-    """Turn strict rank order into a stable, readable score from 1.0–10.0."""
-    denominator = max(total_ranked - 1, 9)
-    return round(max(1.0, 10.0 - (9.0 * (rank_position - 1) / denominator)), 1)
+ENJOYED_MIN_SCORE = 5.0
+ENJOYED_DEFAULT_SCORE = 7.5
+NOT_ENJOYED_MAX_SCORE = 4.9
+NOT_ENJOYED_DEFAULT_SCORE = 3.5
+SCORE_STEP = 0.5
 
 
 def get_user_rankings(
@@ -65,7 +66,12 @@ def get_user_rankings(
     return list(session.exec(statement).all())
 
 
-def start_ranking(session: Session, user: User, title_id: int) -> RankingProgress:
+def start_ranking(
+    session: Session,
+    user: User,
+    title_id: int,
+    enjoyed: bool,
+) -> RankingProgress:
     user_id = _user_id(user)
     title = _watched_title(session, user_id, title_id)
 
@@ -75,7 +81,9 @@ def start_ranking(session: Session, user: User, title_id: int) -> RankingProgres
     if existing_score is not None:
         return _complete_progress(title, existing_score, _ranking_count(session, user_id))
 
-    ranked = _ranked_watched(session, user_id, excluding_title_id=title_id)
+    ranked = _ranked_watched(
+        session, user_id, excluding_title_id=title_id, enjoyed=enjoyed
+    )
     if ranked:
         return RankingProgress(
             new_title=title,
@@ -86,31 +94,47 @@ def start_ranking(session: Session, user: User, title_id: int) -> RankingProgres
             total_ranked=len(ranked),
         )
 
-    ranking = Score(user_id=user_id, title_id=title_id, rank_position=1, score=10.0)
-    session.add(ranking)
-    session.commit()
-    session.refresh(ranking)
-    return _complete_progress(title, ranking, 1)
+    ranking = _finalize_ranking(
+        session,
+        user_id,
+        title_id,
+        insertion_index=0,
+        ranked=ranked,
+        enjoyed=enjoyed,
+    )
+    return _complete_progress(title, ranking, _ranking_count(session, user_id))
 
 
 def get_next_comparison(
     session: Session,
     user: User,
     title_id: int,
+    enjoyed: bool,
     excluded_title_ids: set[int] | None = None,
 ) -> RankingProgress:
-    initial = start_ranking(session, user, title_id)
+    initial = start_ranking(session, user, title_id, enjoyed)
     if initial.complete:
         return initial
 
     user_id = _user_id(user)
-    ranked = _ranked_watched(session, user_id, excluding_title_id=title_id)
+    ranked = _ranked_watched(
+        session, user_id, excluding_title_id=title_id, enjoyed=enjoyed
+    )
     history = _comparison_history(session, user_id, title_id)
     low, high = _ranking_bounds(ranked, history, title_id)
 
     if low == high:
-        ranking = _finalize_ranking(session, user_id, title_id, low)
-        return _complete_progress(initial.new_title, ranking, len(ranked) + 1)
+        ranking = _finalize_ranking(
+            session,
+            user_id,
+            title_id,
+            insertion_index=low,
+            ranked=ranked,
+            enjoyed=enjoyed,
+        )
+        return _complete_progress(
+            initial.new_title, ranking, _ranking_count(session, user_id)
+        )
 
     possible_indexes = list(range(low, high))
     midpoint = (low + high) // 2
@@ -136,6 +160,7 @@ def record_preference(
     title_id: int,
     comparison_title_id: int,
     preferred_title_id: int,
+    enjoyed: bool,
 ) -> RankingProgress:
     user_id = _user_id(user)
     if title_id == comparison_title_id:
@@ -151,7 +176,9 @@ def record_preference(
     ).first()
     if existing_ranking is not None:
         raise InvalidComparisonError("This title's ranking is already complete")
-    ranked = _ranked_watched(session, user_id, excluding_title_id=title_id)
+    ranked = _ranked_watched(
+        session, user_id, excluding_title_id=title_id, enjoyed=enjoyed
+    )
     history = _comparison_history(session, user_id, title_id)
     low, high = _ranking_bounds(ranked, history, title_id)
     valid_ids = {
@@ -173,7 +200,84 @@ def record_preference(
         )
     )
     session.commit()
-    return get_next_comparison(session, user, new_title.id or title_id)
+    return get_next_comparison(
+        session, user, new_title.id or title_id, enjoyed
+    )
+
+
+def record_too_tough(
+    session: Session,
+    user: User,
+    title_id: int,
+    comparison_title_id: int,
+    enjoyed: bool,
+) -> RankingProgress:
+    """Resolve an exhausted neutral comparison without declaring a winner."""
+    user_id = _user_id(user)
+    if title_id == comparison_title_id:
+        raise InvalidComparisonError("A title cannot be compared with itself")
+
+    new_title = _watched_title(session, user_id, title_id)
+    if session.get(Title, comparison_title_id) is None:
+        raise RankingTitleNotFoundError
+    if session.exec(
+        select(Score).where(Score.user_id == user_id, Score.title_id == title_id)
+    ).first() is not None:
+        raise InvalidComparisonError("This title's ranking is already complete")
+
+    ranked = _ranked_watched(
+        session, user_id, excluding_title_id=title_id, enjoyed=enjoyed
+    )
+    history = _comparison_history(session, user_id, title_id)
+    low, high = _ranking_bounds(ranked, history, title_id)
+    candidate_index = next(
+        (
+            index
+            for index in range(low, high)
+            if ranked[index][1].id == comparison_title_id
+        ),
+        None,
+    )
+    if candidate_index is None:
+        raise InvalidComparisonError("Comparison title is not valid for this ranking step")
+
+    # Too Tough is uncertainty, not equality. When the client has no other
+    # candidates left, place the title near the middle of the remaining range
+    # and calculate its own score from the surrounding titles.
+    neutral_index = (low + high) // 2
+    ranking = _finalize_ranking(
+        session,
+        user_id,
+        title_id,
+        neutral_index,
+        ranked,
+        enjoyed,
+    )
+    return _complete_progress(new_title, ranking, _ranking_count(session, user_id))
+
+
+def set_manual_score(
+    session: Session,
+    user: User,
+    title_id: int,
+    score: float,
+) -> Score:
+    """Override one rating without recalculating any of the user's other scores."""
+    user_id = _user_id(user)
+    _watched_title(session, user_id, title_id)
+    ranking = session.exec(
+        select(Score).where(Score.user_id == user_id, Score.title_id == title_id)
+    ).first()
+    if ranking is None:
+        raise TitleNotWatchedError
+    ranking.score = round(min(10.0, max(1.0, score)), 1)
+    ranking.updated_at = datetime.now(timezone.utc)
+    session.add(ranking)
+    session.flush()
+    _refresh_rank_positions(session, user_id, ranking.updated_at)
+    session.commit()
+    session.refresh(ranking)
+    return ranking
 
 
 def _ranking_bounds(
@@ -199,47 +303,70 @@ def _finalize_ranking(
     user_id: int,
     title_id: int,
     insertion_index: int,
+    ranked: list[tuple[Score, Title]],
+    enjoyed: bool,
+    forced_score: float | None = None,
+    rank_hint: int | None = None,
 ) -> Score:
     now = datetime.now(timezone.utc)
-    rankings = list(
-        session.exec(
-            select(Score)
-            .where(Score.user_id == user_id)
-            .order_by(Score.rank_position)
-        ).all()
+    score = forced_score if forced_score is not None else _score_for_insertion(
+        ranked, insertion_index, enjoyed
     )
-    for position, ranking in enumerate(rankings, start=1):
-        ranking.rank_position = position + (1 if position > insertion_index else 0)
-        ranking.updated_at = now
-        session.add(ranking)
-
+    if rank_hint is None:
+        if insertion_index < len(ranked):
+            rank_hint = ranked[insertion_index][0].rank_position
+        elif ranked:
+            rank_hint = ranked[-1][0].rank_position + 1
+        else:
+            rank_hint = _ranking_count(session, user_id) + 1
     new_ranking = Score(
         user_id=user_id,
         title_id=title_id,
-        rank_position=insertion_index + 1,
-        score=1.0,
+        rank_position=rank_hint,
+        score=round(score, 1),
         updated_at=now,
     )
     session.add(new_ranking)
     session.flush()
-    _recalculate_scores(session, user_id, now)
+    _refresh_rank_positions(session, user_id, now)
     session.commit()
     session.refresh(new_ranking)
     return new_ranking
 
 
-def _recalculate_scores(session: Session, user_id: int, now: datetime) -> None:
+def _score_for_insertion(
+    ranked: list[tuple[Score, Title]],
+    insertion_index: int,
+    enjoyed: bool,
+) -> float:
+    """Choose a score for only the new title; existing scores never move."""
+    minimum = ENJOYED_MIN_SCORE if enjoyed else 1.0
+    maximum = 10.0 if enjoyed else NOT_ENJOYED_MAX_SCORE
+    default = ENJOYED_DEFAULT_SCORE if enjoyed else NOT_ENJOYED_DEFAULT_SCORE
+    if not ranked:
+        return default
+
+    if insertion_index <= 0:
+        return min(maximum, ranked[0][0].score + SCORE_STEP)
+    if insertion_index >= len(ranked):
+        return max(minimum, ranked[-1][0].score - SCORE_STEP)
+
+    above = ranked[insertion_index - 1][0].score
+    below = ranked[insertion_index][0].score
+    return min(maximum, max(minimum, round((above + below) / 2, 1)))
+
+
+def _refresh_rank_positions(session: Session, user_id: int, now: datetime) -> None:
+    """Refresh display positions while preserving every stored personal score."""
     rankings = list(
         session.exec(
             select(Score)
             .where(Score.user_id == user_id)
-            .order_by(Score.rank_position, Score.id)
+            .order_by(Score.score.desc(), Score.rank_position, Score.id)
         ).all()
     )
-    total = len(rankings)
     for position, ranking in enumerate(rankings, start=1):
         ranking.rank_position = position
-        ranking.score = calculate_score(position, total)
         ranking.updated_at = now
         session.add(ranking)
 
@@ -248,10 +375,10 @@ def _ranked_watched(
     session: Session,
     user_id: int,
     excluding_title_id: int,
+    enjoyed: bool,
 ) -> list[tuple[Score, Title]]:
-    return list(
-        session.exec(
-            select(Score, Title)
+    statement = (
+        select(Score, Title)
             .join(Title, Score.title_id == Title.id)
             .join(
                 Event,
@@ -262,9 +389,13 @@ def _ranked_watched(
                 Score.title_id != excluding_title_id,
                 Event.event_type == EventType.WATCHED,
             )
-            .order_by(Score.rank_position)
-        ).all()
+            .order_by(Score.score.desc(), Score.rank_position, Score.id)
     )
+    if enjoyed:
+        statement = statement.where(Score.score >= ENJOYED_MIN_SCORE)
+    else:
+        statement = statement.where(Score.score < ENJOYED_MIN_SCORE)
+    return list(session.exec(statement).all())
 
 
 def _comparison_history(

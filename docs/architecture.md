@@ -16,13 +16,14 @@ Mobile app → Supabase Auth → JWT → FastAPI
 
 ## Navigation Responsibilities
 
-- Home: personalized recommendations and the authenticated social activity feed
+- Home: personalized recommendations, friend-only activity, and live TMDb trends
 - Search: discover titles and open the shared detail/status/ranking flow
 - Profile: identity, Want to Watch and Watched lists, rankings, friends, and account
 
 The root auth gate owns the logged-in decision. Logged-out users see the Auth
-stack; logged-in users see Home, Search, and Profile. Search owns a nested stack
-for title details and comparisons, while Profile owns the user's saved lists.
+stack; logged-in users see Home, Search, and Profile. Home owns a nested full
+recommendations screen. Search owns the shared title-detail and comparison
+stack, while Profile owns the user's saved lists and friend management.
 
 ## Code Responsibilities
 
@@ -42,6 +43,7 @@ handling, and errors. Components such as `ActivityCard`, `FriendsSection`, and
 - `event`: a user's current WANT, WATCHED, or WATCHING status for a title
 - `friendship`: one mutual connection between two WATCHD users
 - `activity`: extensible feed-ready user actions with title-status metadata
+- `review`: one editable written review per user and watched title
 
 ## TMDb Catalog Flow
 
@@ -51,6 +53,20 @@ is shipped in the Expo app. A result stays external until the user saves a
 status. `POST /titles/import` then fetches its details and reuses or creates the
 local row by the composite `(tmdb_id, type)` identity before `/events` records
 the user's action.
+
+## Day 10 Recommendation Flow
+
+Home calls authenticated `GET /me/recs`. The recommendations router delegates
+to `recs_service.py`, which combines personal Score rows, source-title genres,
+all current Event exclusions, a secondary friendship signal, and normalized
+TMDb Discover candidates. The service returns external titles with short
+reasons; it never imports recommendations merely because Home displayed them.
+
+The endpoint shape stays stable while the recommendation strategy can later be
+replaced with collaborative filtering, embeddings, or a learned model. Home's
+For You, Following, and Trending tabs load recommendations, social data, and
+TMDb trends independently so one unavailable source does not take down the
+others. The For You arrow opens a scrollable expanded recommendation screen.
 
 ## Day 5 Event Flow
 
@@ -76,7 +92,7 @@ friend and feed queries; Home only displays feed data; Profile manages friends.
 ## Day 8 Ranking Flow
 
 Mark Watched → comparison router → ranking service → comparison history and
-personal score tables. The Add stack owns `CompareScreen`; the discovery Search
-tab and social feed remain separate. The frontend sends only which displayed
+personal score tables. The Search stack owns the shared title-detail and
+`CompareScreen` flow. The frontend sends only which displayed
 title was preferred, while candidate selection and binary rank insertion remain
 private backend behavior.
