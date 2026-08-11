@@ -3,26 +3,32 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { searchTitles } from "../api/titles";
+import { searchTmdbTitles } from "../api/titles";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitleRowList from "../components/TitleRowList";
 import type { AddStackParamList } from "../navigation/AddStack";
 import { colors, radii } from "../theme";
-import type { Title } from "../types/title";
+import type { ExternalTitle } from "../types/title";
 
 type Props = NativeStackScreenProps<AddStackParamList, "AddSearch">;
 
 export default function AddSearchScreen({ navigation }: Props) {
   const [query, setQuery] = useState("");
-  const [titles, setTitles] = useState<Title[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [titles, setTitles] = useState<ExternalTitle[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!query.trim()) {
+      setTitles([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => {
       setIsLoading(true);
-      void searchTitles(query, controller.signal)
+      void searchTmdbTitles(query, controller.signal)
         .then((items) => {
           setTitles(items);
           setError(null);
@@ -72,7 +78,7 @@ export default function AddSearchScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.heading}>
-          <Text style={styles.sectionTitle}>{query ? "Search results" : "Popular titles"}</Text>
+          <Text style={styles.sectionTitle}>{query ? "Search results" : "Search TMDb"}</Text>
           {isLoading ? <ActivityIndicator size="small" color={colors.ink} /> : null}
         </View>
 
@@ -82,9 +88,18 @@ export default function AddSearchScreen({ navigation }: Props) {
           <TitleRowList
             titles={titles}
             onPress={(title) => navigation.navigate("TitleDetail", { title })}
-            emptyMessage={!isLoading ? "No titles found. Try another name." : undefined}
+            emptyMessage={
+              !isLoading
+                ? query.trim()
+                  ? "No titles found. Try another name."
+                  : "Type a movie, show, or anime title to begin."
+                : undefined
+            }
           />
         )}
+        <Text style={styles.attribution}>
+          This product uses the TMDB API but is not endorsed or certified by TMDB.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -117,4 +132,5 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: "800" },
   error: { color: colors.error, fontSize: 12, textAlign: "center", marginTop: 18 },
+  attribution: { color: "#707070", fontSize: 10, lineHeight: 14, textAlign: "center", marginTop: 24 },
 });

@@ -5,7 +5,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { saveTitleStatus } from "../api/events";
 import type { WatchStatus } from "../api/events";
-import { getTitleRatingSummary } from "../api/titles";
+import {
+  getTitleRatingSummary,
+  getTmdbTitleDetails,
+  importTmdbTitle,
+} from "../api/titles";
 import type { RatingSummary } from "../api/titles";
 import { useAuth } from "../auth/AuthContext";
 import AppScreenHeader from "../components/AppScreenHeader";
@@ -13,6 +17,8 @@ import { formatTitleType } from "../components/TitleRowList";
 import TitlePoster from "../components/TitlePoster";
 import type { AddStackParamList } from "../navigation/AddStack";
 import { colors, radii } from "../theme";
+import type { SelectableTitle, Title } from "../types/title";
+import { isExternalTitle } from "../types/title";
 
 type Props = NativeStackScreenProps<AddStackParamList, "TitleDetail">;
 
@@ -25,6 +31,7 @@ const ACTIONS: Array<{ label: string; status: WatchStatus; primary?: boolean }> 
 export default function TitleDetailScreen({ navigation, route }: Props) {
   const { token } = useAuth();
   const { title } = route.params;
+  const [displayTitle, setDisplayTitle] = useState<SelectableTitle>(title);
   const [savingStatus, setSavingStatus] = useState<WatchStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -34,12 +41,22 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
+    setDisplayTitle(title);
     setIsSummaryLoading(true);
-    void getTitleRatingSummary(title.id, controller.signal)
-      .then((summary) => {
-        setRatingSummary(summary);
-        setSummaryError(false);
-      })
+    const request = isExternalTitle(title)
+      ? getTmdbTitleDetails(title.type, title.tmdb_id, controller.signal).then((details) => {
+          setDisplayTitle(details);
+          return {
+            average_score: details.average_score,
+            rating_count: details.rating_count,
+          };
+        })
+      : getTitleRatingSummary(title.id, controller.signal);
+
+    void request.then((summary) => {
+      setRatingSummary(summary);
+      setSummaryError(false);
+    })
       .catch(() => {
         if (!controller.signal.aborted) setSummaryError(true);
       })
@@ -47,7 +64,7 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
         if (!controller.signal.aborted) setIsSummaryLoading(false);
       });
     return () => controller.abort();
-  }, [title.id]);
+  }, [title]);
 
   async function saveStatus(status: WatchStatus) {
     if (!token) return;
@@ -55,13 +72,17 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
     setError(null);
     setSuccess(null);
     try {
-      await saveTitleStatus(token, title.id, status);
+      const localTitle: Title = isExternalTitle(displayTitle)
+        ? await importTmdbTitle(token, displayTitle.tmdb_id, displayTitle.type)
+        : displayTitle;
+      await saveTitleStatus(token, localTitle.id, status);
       if (status === "WATCHED") {
-        navigation.replace("Compare", { title });
+        navigation.replace("Compare", { title: localTitle });
         return;
       }
       const label = ACTIONS.find((action) => action.status === status)?.label;
-      setSuccess(`${title.name} · ${label}`);
+      setDisplayTitle(localTitle);
+      setSuccess(`${localTitle.name} · ${label}`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not update title");
     } finally {
@@ -83,19 +104,34 @@ export default function TitleDetailScreen({ navigation, route }: Props) {
         />
 
         <View style={styles.selectedCard}>
-          <TitlePoster name={title.name} posterUrl={title.poster_url} width={88} height={128} />
+          <TitlePoster name={displayTitle.name} posterUrl={displayTitle.poster_url} width={88} height={128} />
           <View style={styles.selectedInfo}>
-            <Text style={styles.selectedTitle}>{title.name}</Text>
+            <Text style={styles.selectedTitle}>{displayTitle.name}</Text>
             <Text style={styles.metadata}>
-              {[title.year, formatTitleType(title.type)].filter(Boolean).join(" · ")}
+              {[
+                displayTitle.year,
+                formatTitleType(displayTitle.type),
+                displayTitle.runtime_minutes ? `${displayTitle.runtime_minutes} min` : null,
+              ].filter(Boolean).join(" · ")}
             </Text>
-            {title.genres ? (
+            {isExternalTitle(displayTitle) && displayTitle.genres.length ? (
               <Text style={styles.genres} numberOfLines={3}>
-                {title.genres.split(",").join("  ·  ")}
+                {displayTitle.genres.join("  ·  ")}
+              </Text>
+            ) : !isExternalTitle(displayTitle) && displayTitle.genres ? (
+              <Text style={styles.genres} numberOfLines={3}>
+                {displayTitle.genres.split(",").join("  ·  ")}
               </Text>
             ) : null}
           </View>
         </View>
+
+        {displayTitle.overview ? (
+          <View style={styles.overviewCard}>
+            <Text style={styles.overviewTitle}>About</Text>
+            <Text style={styles.overview}>{displayTitle.overview}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.ratingSummary}>
           <View style={styles.ratingCopy}>
@@ -181,6 +217,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     marginBottom: 20,
   },
+  overviewCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    backgroundColor: colors.surface,
+    padding: 13,
+    marginBottom: 12,
+  },
+  overviewTitle: { color: colors.ink, fontSize: 14, fontWeight: "800", marginBottom: 5 },
+  overview: { color: "#5F5A55", fontSize: 12, lineHeight: 18 },
   ratingCopy: { flex: 1 },
   ratingLabel: { color: colors.ink, fontSize: 14, fontWeight: "800" },
   ratingCaption: { color: "#707070", fontSize: 11, marginTop: 3 },

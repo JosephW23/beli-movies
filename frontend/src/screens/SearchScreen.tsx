@@ -11,12 +11,12 @@ import {
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { searchTitles } from "../api/titles";
+import { searchTmdbTitles } from "../api/titles";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitlePoster from "../components/TitlePoster";
 import type { AppTabsParamList } from "../navigation/AppTabs";
 import { colors, radii } from "../theme";
-import type { Title } from "../types/title";
+import type { ExternalTitle } from "../types/title";
 
 type Filter = "All" | "Movies" | "TV Shows" | "Anime";
 type Props = BottomTabScreenProps<AppTabsParamList, "Search">;
@@ -25,15 +25,21 @@ const FILTERS: Filter[] = ["All", "Movies", "TV Shows", "Anime"];
 export default function SearchScreen({ navigation }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("All");
-  const [titles, setTitles] = useState<Title[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [titles, setTitles] = useState<ExternalTitle[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!query.trim()) {
+      setTitles([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => {
       setIsLoading(true);
-      void searchTitles(query, controller.signal)
+      void searchTmdbTitles(query, controller.signal)
         .then((items) => {
           setTitles(items);
           setError(null);
@@ -57,16 +63,12 @@ export default function SearchScreen({ navigation }: Props) {
     if (filter === "Movies") return titles.filter((title) => title.type === "movie");
     if (filter === "TV Shows") return titles.filter((title) => title.type === "tv");
     if (filter === "Anime") {
-      return titles.filter((title) => title.genres?.includes("animation"));
+      return titles.filter((title) => title.genre_ids.includes(16));
     }
     return titles;
   }, [filter, titles]);
 
-  const genres = Array.from(
-    new Set(titles.flatMap((title) => title.genres?.split(",") ?? []))
-  ).slice(0, 6);
-
-  function openTitle(title: Title) {
+  function openTitle(title: ExternalTitle) {
     navigation.navigate("Add", { screen: "TitleDetail", params: { title } });
   }
 
@@ -101,56 +103,19 @@ export default function SearchScreen({ navigation }: Props) {
 
         {isLoading ? (
           <View style={styles.loading}><ActivityIndicator size="small" color={colors.ink} /></View>
-        ) : query ? (
+        ) : query.trim() ? (
           <CatalogGrid title="Search results" titles={visibleTitles} onPress={openTitle} />
         ) : (
-          <>
-            <View style={styles.sectionHeading}>
-              <Text style={styles.sectionTitle}>Trending Now</Text>
-              <Text style={styles.arrow}>›</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trending}>
-              {visibleTitles.slice(0, 4).map((title) => (
-                <Pressable key={title.id} style={styles.trendingItem} onPress={() => openTitle(title)}>
-                  <TitlePoster name={title.name} posterUrl={title.poster_url} width={88} height={128} />
-                  <Text style={styles.posterTitle} numberOfLines={2}>{title.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
-            <CatalogGrid title="Popular on WATCHD" titles={visibleTitles.slice(4, 10)} onPress={openTitle} />
-
-            <View style={styles.sectionHeading}>
-              <Text style={styles.sectionTitle}>Genres</Text>
-            </View>
-            <View style={styles.genres}>
-              {genres.map((genre) => (
-                <View key={genre} style={styles.genreChip}>
-                  <Text style={styles.genreText}>{genre}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.sectionHeading}>
-              <Text style={styles.sectionTitle}>Top This Week</Text>
-              <Text style={styles.arrow}>›</Text>
-            </View>
-            <View style={styles.topList}>
-              {visibleTitles.slice(10, 13).map((title, index) => (
-                <Pressable key={title.id} style={styles.topRow} onPress={() => openTitle(title)}>
-                  <Text style={styles.rank}>{index + 1}</Text>
-                  <TitlePoster name={title.name} posterUrl={title.poster_url} width={30} height={44} />
-                  <View style={styles.topCopy}>
-                    <Text style={styles.topName}>{title.name}</Text>
-                    <Text style={styles.topMeta}>{title.year ?? title.type}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </>
+          <View style={styles.emptySearch}>
+            <Text style={styles.emptyTitle}>Find your next watch</Text>
+            <Text style={styles.emptyCopy}>Search millions of movies, TV shows, and anime.</Text>
+          </View>
         )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Text style={styles.attribution}>
+          This product uses the TMDB API but is not endorsed or certified by TMDB.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -162,8 +127,8 @@ function CatalogGrid({
   onPress,
 }: {
   title: string;
-  titles: Title[];
-  onPress: (title: Title) => void;
+  titles: ExternalTitle[];
+  onPress: (title: ExternalTitle) => void;
 }) {
   return (
     <View>
@@ -216,6 +181,19 @@ const styles = StyleSheet.create({
   },
   activeFilter: { color: colors.background, backgroundColor: colors.ink, borderColor: colors.ink },
   loading: { height: 180, alignItems: "center", justifyContent: "center" },
+  emptySearch: {
+    minHeight: 190,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    backgroundColor: colors.surface,
+    marginTop: 24,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "800" },
+  emptyCopy: { color: "#707070", fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 6 },
   sectionHeading: {
     flexDirection: "row",
     alignItems: "center",
@@ -261,4 +239,5 @@ const styles = StyleSheet.create({
   topMeta: { color: "#707070", fontSize: 11, marginTop: 2 },
   empty: { color: "#707070", fontSize: 12, paddingVertical: 18 },
   error: { color: colors.error, fontSize: 12, textAlign: "center", marginTop: 14 },
+  attribution: { color: "#707070", fontSize: 10, lineHeight: 14, textAlign: "center", marginTop: 24 },
 });

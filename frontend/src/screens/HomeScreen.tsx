@@ -15,20 +15,20 @@ import { getMyList } from "../api/events";
 import type { MyList } from "../api/events";
 import { getFeed } from "../api/social";
 import type { FeedItem } from "../api/social";
-import { searchTitles } from "../api/titles";
+import { getTrendingTitles } from "../api/titles";
 import { useAuth } from "../auth/AuthContext";
 import ActivityCard from "../components/ActivityCard";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
-import type { Title } from "../types/title";
+import type { ExternalTitle } from "../types/title";
 
 const EMPTY_LIST: MyList = { want_to_watch: [], watched: [] };
 
 export default function HomeScreen() {
   const { token } = useAuth();
   const [myList, setMyList] = useState<MyList>(EMPTY_LIST);
-  const [recommendations, setRecommendations] = useState<Title[]>([]);
+  const [recommendations, setRecommendations] = useState<ExternalTitle[]>([]);
   const [activities, setActivities] = useState<FeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -42,15 +42,19 @@ export default function HomeScreen() {
       try {
         const [currentList, catalog, feed] = await Promise.all([
           getMyList(token, signal),
-          searchTitles("", signal),
+          getTrendingTitles(signal),
           getFeed(token, signal),
         ]);
-        const savedIds = new Set([
-          ...currentList.want_to_watch.map((title) => title.id),
-          ...currentList.watched.map((title) => title.id),
+        const savedTmdbSources = new Set([
+          ...currentList.want_to_watch.map((title) => `${title.type}:${title.tmdb_id}`),
+          ...currentList.watched.map((title) => `${title.type}:${title.tmdb_id}`),
         ]);
         setMyList(currentList);
-        setRecommendations(catalog.filter((title) => !savedIds.has(title.id)));
+        setRecommendations(
+          catalog.filter(
+            (title) => !savedTmdbSources.has(`${title.type}:${title.tmdb_id}`)
+          )
+        );
         setActivities(feed);
         setError(null);
       } catch (requestError) {

@@ -32,6 +32,37 @@ def init_db() -> None:
                 text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS username VARCHAR')
             )
             connection.execute(
+                text('ALTER TABLE title ADD COLUMN IF NOT EXISTS overview TEXT')
+            )
+            connection.execute(
+                text('ALTER TABLE title ADD COLUMN IF NOT EXISTS runtime_minutes INTEGER')
+            )
+            connection.execute(
+                text(
+                    """
+                    DO $$
+                    DECLARE old_constraint TEXT;
+                    BEGIN
+                      SELECT conname INTO old_constraint
+                      FROM pg_constraint
+                      WHERE conrelid = 'title'::regclass
+                        AND contype = 'u'
+                        AND pg_get_constraintdef(oid) = 'UNIQUE (tmdb_id)'
+                      LIMIT 1;
+                      IF old_constraint IS NOT NULL THEN
+                        EXECUTE format('ALTER TABLE title DROP CONSTRAINT %I', old_constraint);
+                      END IF;
+                    END $$
+                    """
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_title_tmdb_type "
+                    "ON title (tmdb_id, type) WHERE tmdb_id IS NOT NULL"
+                )
+            )
+            connection.execute(
                 text(
                     'CREATE UNIQUE INDEX IF NOT EXISTS ix_user_username_ci '
                     'ON "user" (lower(username)) WHERE username IS NOT NULL'

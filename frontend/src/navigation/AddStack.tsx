@@ -5,12 +5,12 @@ import AddScreen from "../screens/AddScreen";
 import AddSearchScreen from "../screens/AddSearchScreen";
 import CompareScreen from "../screens/CompareScreen";
 import TitleDetailScreen from "../screens/TitleDetailScreen";
-import type { Title } from "../types/title";
+import type { SelectableTitle, Title } from "../types/title";
 
 export type AddStackParamList = {
   AddHome: undefined;
   AddSearch: undefined;
-  TitleDetail: { title: Title };
+  TitleDetail: { title: SelectableTitle };
   Compare: { title: Title };
 };
 

@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radii } from "../theme";
-import type { Title } from "../types/title";
+import type { ExternalTitle, Title } from "../types/title";
 import TitlePoster from "./TitlePoster";
 
 type DisplayTitle = Title & {
@@ -11,8 +11,8 @@ type DisplayTitle = Title & {
 };
 
 type Props = {
-  titles: DisplayTitle[];
-  onPress: (title: DisplayTitle) => void;
+  titles: Array<DisplayTitle | ExternalTitle>;
+  onPress: (title: DisplayTitle | ExternalTitle) => void;
   emptyMessage?: string;
 };
 
@@ -40,7 +40,7 @@ export default function TitleRowList({ titles, onPress, emptyMessage }: Props) {
               {[title.year, formatTitleType(title.type)].filter(Boolean).join(" · ")}
             </Text>
           </View>
-          {title.personal_score != null && title.personal_rank != null ? (
+          {"personal_score" in title && title.personal_score != null && title.personal_rank != null ? (
             <View style={styles.scoreBlock}>
               <Text style={styles.score}>{title.personal_score.toFixed(1)}</Text>
               <Text style={styles.rank}>#{title.personal_rank}</Text>

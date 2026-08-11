@@ -19,7 +19,7 @@ import TitleRowList from "../components/TitleRowList";
 import TitlePoster from "../components/TitlePoster";
 import type { AddStackParamList } from "../navigation/AddStack";
 import { colors, radii } from "../theme";
-import type { Title } from "../types/title";
+import type { SelectableTitle } from "../types/title";
 
 type Props = NativeStackScreenProps<AddStackParamList, "AddHome">;
 type AddMode = "RATE" | "WANT" | "WATCHED";
@@ -58,7 +58,7 @@ export default function AddScreen({ navigation }: Props) {
     }, [refreshList])
   );
 
-  function chooseTitle(title: Title) {
+  function chooseTitle(title: SelectableTitle) {
     navigation.navigate("TitleDetail", { title });
   }
 

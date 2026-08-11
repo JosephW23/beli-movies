@@ -8,7 +8,10 @@
   - Auth (JWT)
   - Hosted Postgres (database)
 
-Mobile app → FastAPI → Supabase Postgres  
+Mobile app → FastAPI → Supabase Postgres
+
+Mobile app → FastAPI → TMDb movie/TV catalog
+
 Mobile app → Supabase Auth → JWT → FastAPI
 
 ## Navigation Responsibilities
@@ -40,6 +43,15 @@ handling, and errors. Components such as `ActivityCard`, `FriendsSection`, and
 - `event`: a user's current WANT, WATCHED, or WATCHING status for a title
 - `friendship`: one mutual connection between two WATCHD users
 - `activity`: extensible feed-ready user actions with title-status metadata
+
+## TMDb Catalog Flow
+
+Search and Add call FastAPI's `/search` endpoints. `tmdb_service.py` owns the
+external HTTP calls and normalizes movie and TV responses; no TMDb credential
+is shipped in the Expo app. A result stays external until the user saves a
+status. `POST /titles/import` then fetches its details and reuses or creates the
+local row by the composite `(tmdb_id, type)` identity before `/events` records
+the user's action.
 
 ## Day 5 Event Flow
 

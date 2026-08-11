@@ -66,6 +66,28 @@ Response:
   "tmdb_id": 1001
 }
 
+TMDb Search
+GET /search?q={query}
+
+Search the external TMDb movie and TV catalog. People are filtered out, poster
+paths are normalized to complete image URLs, and an empty query is rejected.
+
+GET /search/{movie|tv}/{tmdb_id}
+
+Get external title metadata including overview, genres, runtime when available,
+and the public WATCHD average if this title already exists locally.
+
+POST /titles/import
+
+Authenticated endpoint used immediately before a user saves a title status.
+It fetches trusted details from TMDb and reuses the existing `(tmdb_id, type)`
+row or creates it. The request body is:
+
+{
+  "tmdb_id": 438631,
+  "type": "movie"
+}
+
 GET /titles/{id}/rating-summary
 
 Return the public WATCHD average for a title before the user submits their own

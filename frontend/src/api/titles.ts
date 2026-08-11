@@ -1,4 +1,4 @@
-import type { Title } from "../types/title";
+import type { ExternalTitle, Title } from "../types/title";
 import { apiRequest } from "./client";
 
 type TitlesResponse = {
@@ -13,7 +13,7 @@ export type RatingSummary = {
   rating_count: number;
 };
 
-export async function searchTitles(
+export async function searchStoredTitles(
   query: string,
   signal?: AbortSignal
 ): Promise<Title[]> {
@@ -24,6 +24,41 @@ export async function searchTitles(
     signal,
   });
   return body.items;
+}
+
+export function searchTmdbTitles(
+  query: string,
+  signal?: AbortSignal
+): Promise<ExternalTitle[]> {
+  const normalized = query.trim();
+  if (!normalized) return Promise.resolve([]);
+  return apiRequest<ExternalTitle[]>(`/search?q=${encodeURIComponent(normalized)}`, {
+    signal,
+  });
+}
+
+export function getTrendingTitles(signal?: AbortSignal): Promise<ExternalTitle[]> {
+  return apiRequest<ExternalTitle[]>("/search/trending", { signal });
+}
+
+export function getTmdbTitleDetails(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+  signal?: AbortSignal
+): Promise<ExternalTitle> {
+  return apiRequest<ExternalTitle>(`/search/${mediaType}/${tmdbId}`, { signal });
+}
+
+export function importTmdbTitle(
+  token: string,
+  tmdbId: number,
+  mediaType: "movie" | "tv"
+): Promise<Title> {
+  return apiRequest<Title>("/titles/import", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ tmdb_id: tmdbId, type: mediaType }),
+  });
 }
 
 export function getTitleRatingSummary(
