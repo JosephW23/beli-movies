@@ -19,8 +19,8 @@ Home | Add | Search | Profile
 - FastAPI (Python)
 - Supabase (Auth + Postgres)
 - PostgreSQL
-- Docker + AWS Elastic Beanstalk
-- pytest + GitHub Actions
+- Docker
+- pytest + GitHub Actions CI
 
 ## Project Structure
 
@@ -57,6 +57,7 @@ values. The required variables are:
 - `SUPABASE_JWKS_URL`
 - `SUPABASE_ISSUER`
 - `SUPABASE_AUDIENCE` (normally `authenticated`)
+- `TMDB_READ_ACCESS_TOKEN` (or the optional `TMDB_API_KEY` alternative)
 
 The API runs at `http://127.0.0.1:8000`. Check `/health`, then open `/docs`
 for the interactive API documentation.
@@ -125,6 +126,16 @@ token, or production data. Current coverage focuses on:
 
 This is focused coverage for important backend behavior, not complete line
 coverage.
+
+## Docker and CI
+
+The FastAPI backend has a Docker image definition, and GitHub Actions runs the
+backend pytest suite automatically on every push and pull request. Runtime
+secrets are passed to Docker through environment variables and are not included
+in the image or CI workflow.
+
+See [`docs/deploy.md`](docs/deploy.md) for the Docker build, run, verification,
+and container-management commands.
 
 ## Screenshots
 
