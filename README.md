@@ -86,6 +86,21 @@ build when native modules are required.
 Never commit either `.env` file. They are ignored by Git; the tracked
 `.env.example` files contain placeholders only.
 
+## Performance and Stability
+
+- Compound database indexes cover common user/title, ranking, friendship, and
+  newest-activity queries.
+- Local title browsing and the social feed use validated, database-level
+  pagination rather than loading every row.
+- Feed, My List, rankings, and friends use joined or batched relationship
+  queries to avoid obvious N+1 lookups.
+- Mobile feed pages load lazily, prevent duplicate load-more requests, and keep
+  existing content when a later page fails.
+- Home and Profile support pull-to-refresh with distinct loading, empty, and
+  retry states.
+
+Implementation details are in [`docs/performance.md`](docs/performance.md).
+
 ## Screenshots
 
 | Home | Add | Search | Profile |

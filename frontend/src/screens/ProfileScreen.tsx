@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -54,6 +55,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [rankingsError, setRankingsError] = useState<string | null>(null);
   const [listFilter, setListFilter] = useState<ListFilter>("want");
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadProfile = useCallback(
     async (signal?: AbortSignal) => {
@@ -112,6 +114,13 @@ export default function ProfileScreen({ navigation }: Props) {
     },
     [rankingFilter, token]
   );
+
+  const refreshProfile = useCallback(async () => {
+    if (!token || isRefreshing) return;
+    setIsRefreshing(true);
+    await Promise.all([loadProfile(), loadRankings()]);
+    setIsRefreshing(false);
+  }, [isRefreshing, loadProfile, loadRankings, token]);
 
   useFocusEffect(
     useCallback(() => {
@@ -190,6 +199,13 @@ export default function ProfileScreen({ navigation }: Props) {
         style={styles.root}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void refreshProfile()}
+            tintColor={colors.ink}
+          />
+        }
       >
         <AppScreenHeader title="Profile" subtitle="You" />
 

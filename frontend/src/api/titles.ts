@@ -3,9 +3,10 @@ import { apiRequest } from "./client";
 
 type TitlesResponse = {
   items: Title[];
-  page: number;
-  page_size: number;
+  limit: number;
+  offset: number;
   total: number;
+  has_more: boolean;
 };
 
 export type RatingSummary = {
@@ -17,7 +18,7 @@ export async function searchStoredTitles(
   query: string,
   signal?: AbortSignal
 ): Promise<Title[]> {
-  const params = new URLSearchParams({ page: "1", page_size: "20" });
+  const params = new URLSearchParams({ limit: "20", offset: "0" });
   if (query.trim()) params.set("query", query.trim());
 
   const body = await apiRequest<TitlesResponse>(`/titles?${params.toString()}`, {

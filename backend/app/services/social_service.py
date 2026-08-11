@@ -96,7 +96,12 @@ def get_friends(session: Session, user: User) -> list[User]:
     )
 
 
-def get_feed(session: Session, user: User, limit: int = 30) -> list[FeedRow]:
+def get_feed(
+    session: Session,
+    user: User,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[FeedRow]:
     """Return newest title activity from the current user and their friends."""
     user_id = _require_user_id(user)
     feed_user_ids = {user_id, *(friend.id for friend in get_friends(session, user) if friend.id)}
@@ -109,7 +114,8 @@ def get_feed(session: Session, user: User, limit: int = 30) -> list[FeedRow]:
             (Score.user_id == Activity.user_id) & (Score.title_id == Activity.title_id),
         )
         .where(Activity.user_id.in_(feed_user_ids))
-        .order_by(Activity.created_at.desc())
+        .order_by(Activity.created_at.desc(), Activity.id.desc())
+        .offset(offset)
         .limit(limit)
     ).all()
 

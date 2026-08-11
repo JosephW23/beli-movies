@@ -39,22 +39,23 @@ def list_titles(
     session: Annotated[Session, Depends(get_session)],
     query: str | None = Query(default=None),
     type: str | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=20, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
 ) -> dict:
     items, total = search_titles(
         session=session,
         query=query,
         type=type,
-        page=page,
-        page_size=page_size,
+        limit=limit,
+        offset=offset,
     )
 
     return {
         "items": items,
-        "page": page,
-        "page_size": page_size,
+        "limit": limit,
+        "offset": offset,
         "total": total,
+        "has_more": offset + len(items) < total,
     }
 
 

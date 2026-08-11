@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlmodel import Session
 
@@ -91,9 +91,11 @@ def read_friends(
 def read_feed(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[FeedItemResponse]:
     result: list[FeedItemResponse] = []
-    for row in get_feed(session, current_user):
+    for row in get_feed(session, current_user, limit=limit, offset=offset):
         if row.activity.id is None or row.title.id is None:
             raise RuntimeError("Persisted feed item is missing an id")
         result.append(

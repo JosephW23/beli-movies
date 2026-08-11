@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -36,6 +36,8 @@ const tabs: { key: FeedTab; label: string }[] = [
   { key: "trending", label: "Trending" },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function HomeScreen({ navigation }: Props) {
   const { token } = useAuth();
   const tabNavigation = navigation.getParent<BottomTabNavigationProp<AppTabsParamList>>();
@@ -53,10 +55,17 @@ export default function HomeScreen({ navigation }: Props) {
   const [trendingError, setTrendingError] = useState<string | null>(null);
   const [recommendationPage, setRecommendationPage] = useState(1);
   const [trendingPage, setTrendingPage] = useState(1);
+  const [feedOffset, setFeedOffset] = useState(0);
   const [isLoadingMoreRecommendations, setIsLoadingMoreRecommendations] = useState(false);
   const [isLoadingMoreTrending, setIsLoadingMoreTrending] = useState(false);
+  const [isLoadingMoreFeed, setIsLoadingMoreFeed] = useState(false);
   const [hasMoreRecommendations, setHasMoreRecommendations] = useState(true);
   const [hasMoreTrending, setHasMoreTrending] = useState(true);
+  const [hasMoreFeed, setHasMoreFeed] = useState(true);
+  const [feedMoreError, setFeedMoreError] = useState<string | null>(null);
+  const recommendationRequestInFlight = useRef(false);
+  const trendingRequestInFlight = useRef(false);
+  const socialRequestInFlight = useRef(false);
 
   const friendActivities = useMemo(() => {
     const friendIds = new Set(friends.map((friend) => friend.id));
@@ -68,20 +77,22 @@ export default function HomeScreen({ navigation }: Props) {
     append = false,
     signal?: AbortSignal
   ) => {
-    if (!token) return;
+    if (!token || recommendationRequestInFlight.current) return;
+    recommendationRequestInFlight.current = true;
     if (append) setIsLoadingMoreRecommendations(true);
     else setIsRecommendationsLoading(true);
     try {
       const next = await getRecommendations(token, 20, page, signal);
       setRecommendations((current) => append ? mergeUnique(current, next) : next);
       setRecommendationPage(page);
-      setHasMoreRecommendations(next.length > 0);
+      setHasMoreRecommendations(next.length === PAGE_SIZE);
       setRecommendationsError(null);
     } catch (requestError) {
       if (!signal?.aborted) {
         setRecommendationsError(requestError instanceof Error ? requestError.message : "Could not load recommendations.");
       }
     } finally {
+      recommendationRequestInFlight.current = false;
       if (!signal?.aborted) {
         setIsRecommendationsLoading(false);
         setIsLoadingMoreRecommendations(false);
@@ -89,23 +100,45 @@ export default function HomeScreen({ navigation }: Props) {
     }
   }, [token]);
 
-  const loadSocial = useCallback(async (signal?: AbortSignal) => {
-    if (!token) return;
-    setIsSocialLoading(true);
+  const loadSocial = useCallback(async (
+    offset = 0,
+    append = false,
+    signal?: AbortSignal
+  ) => {
+    if (!token || socialRequestInFlight.current) return;
+    socialRequestInFlight.current = true;
+    if (append) setIsLoadingMoreFeed(true);
+    else setIsSocialLoading(true);
     try {
-      const [nextActivities, nextFriends] = await Promise.all([
-        getFeed(token, signal),
-        getFriends(token, signal),
-      ]);
-      setActivities(nextActivities);
-      setFriends(nextFriends);
+      if (append) {
+        const nextActivities = await getFeed(token, PAGE_SIZE, offset, signal);
+        setActivities((current) => mergeUnique(current, nextActivities));
+        setFeedOffset(offset);
+        setHasMoreFeed(nextActivities.length === PAGE_SIZE);
+      } else {
+        const [nextActivities, nextFriends] = await Promise.all([
+          getFeed(token, PAGE_SIZE, offset, signal),
+          getFriends(token, signal),
+        ]);
+        setActivities(nextActivities);
+        setFriends(nextFriends);
+        setFeedOffset(offset);
+        setHasMoreFeed(nextActivities.length === PAGE_SIZE);
+      }
       setSocialError(null);
+      setFeedMoreError(null);
     } catch (requestError) {
       if (!signal?.aborted) {
-        setSocialError(requestError instanceof Error ? requestError.message : "Could not load activity.");
+        const message = requestError instanceof Error ? requestError.message : "Could not load activity.";
+        if (append) setFeedMoreError(message);
+        else setSocialError(message);
       }
     } finally {
-      if (!signal?.aborted) setIsSocialLoading(false);
+      socialRequestInFlight.current = false;
+      if (!signal?.aborted) {
+        setIsSocialLoading(false);
+        setIsLoadingMoreFeed(false);
+      }
     }
   }, [token]);
 
@@ -114,19 +147,22 @@ export default function HomeScreen({ navigation }: Props) {
     append = false,
     signal?: AbortSignal
   ) => {
+    if (trendingRequestInFlight.current) return;
+    trendingRequestInFlight.current = true;
     if (append) setIsLoadingMoreTrending(true);
     else setIsTrendingLoading(true);
     try {
       const next = await getTrendingTitles(page, signal);
       setTrending((current) => append ? mergeUnique(current, next) : next);
       setTrendingPage(page);
-      setHasMoreTrending(next.length > 0);
+      setHasMoreTrending(next.length === PAGE_SIZE);
       setTrendingError(null);
     } catch (requestError) {
       if (!signal?.aborted) {
         setTrendingError(requestError instanceof Error ? requestError.message : "Could not load trending titles.");
       }
     } finally {
+      trendingRequestInFlight.current = false;
       if (!signal?.aborted) {
         setIsTrendingLoading(false);
         setIsLoadingMoreTrending(false);
@@ -138,7 +174,7 @@ export default function HomeScreen({ navigation }: Props) {
     if (refreshing) setIsRefreshing(true);
     await Promise.all([
       loadRecommendations(1, false, signal),
-      loadSocial(signal),
+      loadSocial(0, false, signal),
       loadTrending(1, false, signal),
     ]);
     if (!signal?.aborted) setIsRefreshing(false);
@@ -158,6 +194,11 @@ export default function HomeScreen({ navigation }: Props) {
   function loadMoreTrending() {
     if (!hasMoreTrending || isLoadingMoreTrending || isTrendingLoading) return;
     void loadTrending(trendingPage + 1, true);
+  }
+
+  function loadMoreFeed() {
+    if (!hasMoreFeed || isLoadingMoreFeed || isSocialLoading || socialRequestInFlight.current) return;
+    void loadSocial(feedOffset + PAGE_SIZE, true);
   }
 
   function openExternalTitle(title: ExternalTitle) {
@@ -187,12 +228,12 @@ export default function HomeScreen({ navigation }: Props) {
         }
         scrollEventThrottle={200}
         onScroll={({ nativeEvent }) => {
-          if (
-            activeTab === "trending" &&
+          const isNearBottom =
             nativeEvent.layoutMeasurement.height + nativeEvent.contentOffset.y >=
-              nativeEvent.contentSize.height - 280
-          ) {
-            loadMoreTrending();
+            nativeEvent.contentSize.height - 280;
+          if (isNearBottom) {
+            if (activeTab === "trending") loadMoreTrending();
+            else loadMoreFeed();
           }
         }}
       >
@@ -228,9 +269,9 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.arrow}>›</Text>
             </Pressable>
 
-            {isRecommendationsLoading ? (
+            {isRecommendationsLoading && recommendations.length === 0 ? (
               <LoadingState label="Loading recommendations…" />
-            ) : recommendationsError ? (
+            ) : recommendationsError && recommendations.length === 0 ? (
               <ErrorState message={recommendationsError} onRetry={() => void loadRecommendations()} />
             ) : recommendations.length ? (
               <ScrollView
@@ -252,15 +293,20 @@ export default function HomeScreen({ navigation }: Props) {
             ) : (
               <EmptyState title="Build your taste profile" body="Rank more titles to improve your recommendations." />
             )}
+            {recommendationsError && recommendations.length > 0 ? (
+              <ErrorState message={recommendationsError} onRetry={() => void loadRecommendations()} compact />
+            ) : null}
 
             <SectionHeading title="Activity" caption="What’s moving on WATCHD" />
             <ActivityList
-              loading={isSocialLoading}
+              loading={isSocialLoading && activities.length === 0}
               activities={activities}
               emptyTitle="Your feed is ready."
               emptyBody="Add friends or rate a title to see activity here."
               onOpenTitle={openStoredTitle}
             />
+            {isLoadingMoreFeed ? <MoreLoader /> : null}
+            {feedMoreError ? <ErrorState message={`Could not load more: ${feedMoreError}`} onRetry={loadMoreFeed} compact /> : null}
             {socialError ? <ErrorState message={socialError} onRetry={() => void loadSocial()} compact /> : null}
           </>
         ) : null}
@@ -268,9 +314,9 @@ export default function HomeScreen({ navigation }: Props) {
         {activeTab === "following" ? (
           <>
             <SectionHeading title="Following" caption="What your friends are watching" />
-            {isSocialLoading ? (
+            {isSocialLoading && friends.length === 0 && activities.length === 0 ? (
               <LoadingState label="Loading friends…" />
-            ) : socialError ? (
+            ) : socialError && friends.length === 0 && activities.length === 0 ? (
               <ErrorState message={socialError} onRetry={() => void loadSocial()} />
             ) : friends.length === 0 ? (
               <View style={styles.emptyCard}>
@@ -289,15 +335,20 @@ export default function HomeScreen({ navigation }: Props) {
                 onOpenTitle={openStoredTitle}
               />
             )}
+            {isLoadingMoreFeed ? <MoreLoader /> : null}
+            {feedMoreError ? <ErrorState message={`Could not load more: ${feedMoreError}`} onRetry={loadMoreFeed} compact /> : null}
+            {socialError && (friends.length > 0 || activities.length > 0) ? (
+              <ErrorState message={socialError} onRetry={() => void loadSocial()} compact />
+            ) : null}
           </>
         ) : null}
 
         {activeTab === "trending" ? (
           <>
             <SectionHeading title="Trending Now" caption="Popular this week on TMDb" />
-            {isTrendingLoading ? (
+            {isTrendingLoading && trending.length === 0 ? (
               <LoadingState label="Loading what’s trending…" />
-            ) : trendingError ? (
+            ) : trendingError && trending.length === 0 ? (
               <ErrorState message={trendingError} onRetry={() => void loadTrending()} />
             ) : trending.length ? (
               <View style={styles.trendingGrid}>
@@ -309,6 +360,9 @@ export default function HomeScreen({ navigation }: Props) {
             ) : (
               <EmptyState title="Nothing is trending yet" body="Pull down to check again." />
             )}
+            {trendingError && trending.length > 0 ? (
+              <ErrorState message={trendingError} onRetry={() => void loadTrending()} compact />
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -316,7 +370,7 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
-function mergeUnique<T extends { id: string }>(current: T[], next: T[]): T[] {
+function mergeUnique<T extends { id: string | number }>(current: T[], next: T[]): T[] {
   const seen = new Set(current.map((item) => item.id));
   return [...current, ...next.filter((item) => !seen.has(item.id))];
 }
@@ -384,7 +438,7 @@ function ActivityList({
           <Text style={styles.emptyText}>Loading activity…</Text>
         </View>
       ) : activities.length ? (
-        activities.slice(0, 20).map((activity, index, items) => (
+        activities.map((activity, index, items) => (
           <ActivityCard
             key={activity.id}
             activity={activity}

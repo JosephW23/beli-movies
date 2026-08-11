@@ -20,6 +20,15 @@ export function getFriends(
   return apiRequest<SocialUser[]>("/friends", { token, signal });
 }
 
-export function getFeed(token: string, signal?: AbortSignal): Promise<FeedItem[]> {
-  return apiRequest<FeedItem[]>("/feed", { token, signal });
+export function getFeed(
+  token: string,
+  limit = 20,
+  offset = 0,
+  signal?: AbortSignal
+): Promise<FeedItem[]> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return apiRequest<FeedItem[]>(`/feed?${params.toString()}`, { token, signal });
 }

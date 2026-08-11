@@ -10,20 +10,19 @@ def search_titles(
     session: Session,
     query: str | None,
     type: str | None,
-    page: int,
-    page_size: int,
+    limit: int,
+    offset: int,
 ) -> tuple[list[Title], int]:
     """
     Returns (items, total).
 
     - query: optional search string (matches Title.name)
     - type: optional filter ("movie" or "tv")
-    - page/page_size: pagination
+    - limit/offset: pagination applied by the database
     """
 
-    page = max(page, 1)
-    page_size = min(max(page_size, 1), 100)
-    offset = (page - 1) * page_size
+    limit = min(max(limit, 1), 50)
+    offset = max(offset, 0)
 
     # Build the base "list" query
     stmt = select(Title)
@@ -47,7 +46,9 @@ def search_titles(
     total = session.exec(count_stmt).one()
 
     # Apply pagination to the list query
-    items = session.exec(stmt.offset(offset).limit(page_size)).all()
+    items = session.exec(
+        stmt.order_by(Title.name, Title.id).offset(offset).limit(limit)
+    ).all()
 
     return items, total
 

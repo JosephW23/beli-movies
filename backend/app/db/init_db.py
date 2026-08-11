@@ -125,6 +125,33 @@ def init_db() -> None:
                     "ON comparison (new_title_id)"
                 )
             )
+            # create_all only creates indexes alongside new tables. Keep these
+            # statements idempotent so existing Supabase databases receive the
+            # Day 11 query indexes too.
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_event_user_title "
+                    "ON event (user_id, title_id)"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_score_user_title "
+                    "ON score (user_id, title_id)"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_friendship_user_friend "
+                    "ON friendship (user_id, friend_id)"
+                )
+            )
+            connection.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_activity_user_created_at "
+                    "ON activity (user_id, created_at DESC)"
+                )
+            )
             connection.execute(
                 text("ALTER TABLE score ALTER COLUMN rank_position SET NOT NULL")
             )

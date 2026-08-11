@@ -27,9 +27,9 @@ query (optional): search by title name
 
 type (optional): "movie" or "tv"
 
-page (optional, default=1)
+limit (optional, default=20, maximum=50)
 
-page_size (optional, default=20)
+offset (optional, default=0)
 
 Response:
 
@@ -45,9 +45,10 @@ Response:
       "tmdb_id": 1001
     }
   ],
-  "page": 1,
-  "page_size": 20,
-  "total": 20
+  "limit": 20,
+  "offset": 0,
+  "total": 20,
+  "has_more": false
 }
 
 GET /titles/{id}
@@ -314,6 +315,12 @@ GET /feed
 
 Return recent title activity from the authenticated user and their friends,
 newest first. Each `POST /events` write creates a corresponding activity.
+
+Query params:
+
+limit (optional, default=20, maximum=50)
+
+offset (optional, default=0)
 
 Headers:
 

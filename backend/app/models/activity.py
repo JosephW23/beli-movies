@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional
+from sqlalchemy import Index
 from sqlmodel import Field, SQLModel
 from app.models.enums import ActivityType
 
@@ -8,6 +9,10 @@ class Activity(SQLModel, table=True):
     """
     Purpose: power the feed (event created, compare made, friend added).
     """
+
+    __table_args__ = (
+        Index("ix_activity_user_created_at", "user_id", "created_at"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
 

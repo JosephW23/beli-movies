@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -10,6 +10,7 @@ class Score(SQLModel, table=True):
 
     __table_args__ = (
         UniqueConstraint("user_id", "title_id", name="uq_score_user_title"),
+        Index("ix_score_user_title", "user_id", "title_id"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
