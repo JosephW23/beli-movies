@@ -17,13 +17,12 @@ Mobile app → Supabase Auth → JWT → FastAPI
 ## Navigation Responsibilities
 
 - Home: personalized recommendations and the authenticated social activity feed
-- Add: find or select a title, log it, and view Want to Watch and Watched lists
-- Search: discover titles through search, media filters, genres, and curated rows
-- Profile: identity, stats, taste, top titles, friend management, and account
+- Search: discover titles and open the shared detail/status/ranking flow
+- Profile: identity, Want to Watch and Watched lists, rankings, friends, and account
 
 The root auth gate owns the logged-in decision. Logged-out users see the Auth
-stack; logged-in users see the four main tabs. Add owns a nested stack so title
-selection and status updates do not become additional bottom tabs.
+stack; logged-in users see Home, Search, and Profile. Search owns a nested stack
+for title details and comparisons, while Profile owns the user's saved lists.
 
 ## Code Responsibilities
 

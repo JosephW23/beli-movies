@@ -15,12 +15,12 @@ import { useAuth } from "../auth/AuthContext";
 import AppScreenHeader from "../components/AppScreenHeader";
 import { formatTitleType } from "../components/TitleRowList";
 import TitlePoster from "../components/TitlePoster";
-import type { AddStackParamList } from "../navigation/AddStack";
+import type { SearchStackParamList } from "../navigation/SearchStack";
 import { colors, radii } from "../theme";
 import type { SelectableTitle, Title } from "../types/title";
 import { isExternalTitle } from "../types/title";
 
-type Props = NativeStackScreenProps<AddStackParamList, "TitleDetail">;
+type Props = NativeStackScreenProps<SearchStackParamList, "TitleDetail">;
 
 const ACTIONS: Array<{ label: string; status: WatchStatus; primary?: boolean }> = [
   { label: "Mark as Watched", status: "WATCHED", primary: true },

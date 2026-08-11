@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, radii } from "../theme";
 import type { PersonalRanking } from "../types/ranking";
@@ -7,9 +7,10 @@ import TitlePoster from "./TitlePoster";
 
 type Props = {
   titles: PersonalRanking[];
+  onPress?: (title: PersonalRanking) => void;
 };
 
-export default function RankingList({ titles }: Props) {
+export default function RankingList({ titles, onPress }: Props) {
   if (!titles.length) {
     return (
       <View style={styles.emptyCard}>
@@ -21,7 +22,16 @@ export default function RankingList({ titles }: Props) {
   return (
     <View style={styles.list}>
       {titles.map((title, index) => (
-        <View key={title.title_id} style={[styles.row, index === titles.length - 1 && styles.lastRow]}>
+        <Pressable
+          key={title.title_id}
+          onPress={() => onPress?.(title)}
+          disabled={!onPress}
+          style={({ pressed }) => [
+            styles.row,
+            index === titles.length - 1 && styles.lastRow,
+            pressed && styles.pressed,
+          ]}
+        >
           <Text style={styles.position}>#{title.rank}</Text>
           <TitlePoster name={title.title_name} posterUrl={title.poster_url} width={36} height={52} />
           <View style={styles.copy}>
@@ -31,7 +41,7 @@ export default function RankingList({ titles }: Props) {
           <View style={styles.scoreBadge}>
             <Text style={styles.score}>{title.score.toFixed(1)}</Text>
           </View>
-        </View>
+        </Pressable>
       ))}
     </View>
   );
@@ -77,4 +87,5 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   empty: { color: "#707070", fontSize: 12 },
+  pressed: { opacity: 0.7 },
 });

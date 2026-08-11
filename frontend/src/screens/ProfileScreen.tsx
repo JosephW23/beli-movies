@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMyList } from "../api/events";
@@ -15,20 +16,26 @@ import type { MyList } from "../api/events";
 import { getMe } from "../api/me";
 import type { CurrentUser } from "../api/me";
 import { getMyRankings } from "../api/ranking";
+import { getStoredTitle } from "../api/titles";
 import { addFriend, getFriends } from "../api/social";
 import type { SocialUser } from "../api/social";
 import { useAuth } from "../auth/AuthContext";
 import AppScreenHeader from "../components/AppScreenHeader";
 import FriendsSection from "../components/FriendsSection";
 import RankingList from "../components/RankingList";
+import TitleRowList from "../components/TitleRowList";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
+import type { AppTabsParamList } from "../navigation/AppTabs";
 import type { PersonalRanking } from "../types/ranking";
 
 const EMPTY_LIST: MyList = { want_to_watch: [], watched: [] };
 type RankingFilter = "all" | "movie" | "tv";
+type ListFilter = "want" | "watched";
 
-export default function ProfileScreen() {
+type Props = BottomTabScreenProps<AppTabsParamList, "Profile">;
+
+export default function ProfileScreen({ navigation }: Props) {
   const { token, signOut, isLoading } = useAuth();
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [myList, setMyList] = useState<MyList>(EMPTY_LIST);
@@ -43,6 +50,7 @@ export default function ProfileScreen() {
   const [rankingFilter, setRankingFilter] = useState<RankingFilter>("all");
   const [isRankingsLoading, setIsRankingsLoading] = useState(true);
   const [rankingsError, setRankingsError] = useState<string | null>(null);
+  const [listFilter, setListFilter] = useState<ListFilter>("want");
 
   const loadProfile = useCallback(
     async (signal?: AbortSignal) => {
@@ -160,6 +168,17 @@ export default function ProfileScreen() {
     }
   }
 
+  async function openStoredTitle(titleId: number) {
+    try {
+      const title = await getStoredTitle(titleId);
+      navigation.navigate("Search", { screen: "TitleDetail", params: { title } });
+    } catch (requestError) {
+      setProfileError(
+        requestError instanceof Error ? requestError.message : "Could not open title"
+      );
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
@@ -212,6 +231,45 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        <Text style={styles.sectionTitle}>My List</Text>
+        <View style={styles.listFilters}>
+          {([
+            ["want", "Want to Watch"],
+            ["watched", "Watched"],
+          ] as const).map(([value, label]) => (
+            <Pressable
+              key={value}
+              onPress={() => setListFilter(value)}
+              style={[
+                styles.listFilter,
+                listFilter === value && styles.activeListFilter,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.listFilterText,
+                  listFilter === value && styles.activeListFilterText,
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.profileList}>
+          <TitleRowList
+            titles={listFilter === "want" ? myList.want_to_watch : myList.watched}
+            onPress={(title) => void openStoredTitle(Number(title.id))}
+            emptyMessage={
+              !isProfileLoading
+                ? listFilter === "want"
+                  ? "Your Want to Watch list is empty."
+                  : "You haven't marked anything as watched yet."
+                : undefined
+            }
+          />
+        </View>
+
         <Text style={styles.sectionTitle}>Your Taste</Text>
         <View style={styles.tasteCard}>
           <Text style={styles.tasteCaption}>Based on what you watch</Text>
@@ -235,11 +293,15 @@ export default function ProfileScreen() {
         {rankedTitles.length ? (
           <View style={styles.topFour}>
             {rankedTitles.slice(0, 4).map((title) => (
-              <View key={title.event_id} style={styles.topItem}>
+              <Pressable
+                key={title.event_id}
+                style={({ pressed }) => [styles.topItem, pressed && styles.pressed]}
+                onPress={() => void openStoredTitle(title.id)}
+              >
                 <View style={styles.rankBadge}><Text style={styles.rankText}>{title.personal_rank}</Text></View>
                 <TitlePoster name={title.name} posterUrl={title.poster_url} width={74} height={108} />
                 <Text style={styles.topScore}>{title.personal_score?.toFixed(1)}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         ) : (
@@ -285,7 +347,10 @@ export default function ProfileScreen() {
             <Text style={styles.rankingsRetry}>Tap to retry</Text>
           </Pressable>
         ) : (
-          <RankingList titles={rankings} />
+          <RankingList
+            titles={rankings}
+            onPress={(title) => void openStoredTitle(title.title_id)}
+          />
         )}
 
         <FriendsSection
@@ -300,7 +365,7 @@ export default function ProfileScreen() {
         />
 
         <View style={styles.menu}>
-          {["Your Reviews", "Your Lists", "Activity", "Account"].map((item) => (
+          {["Your Reviews", "Activity", "Account"].map((item) => (
             <View key={item} style={styles.menuRow}>
               <Text style={styles.menuText}>{item}</Text>
               <Text style={styles.chevron}>›</Text>
@@ -368,6 +433,21 @@ const styles = StyleSheet.create({
   statValue: { color: colors.ink, fontSize: 16, fontWeight: "800" },
   statLabel: { color: "#707070", fontSize: 11, marginTop: 2 },
   statDivider: { width: 1, height: 23, backgroundColor: colors.border },
+  listFilters: { flexDirection: "row", gap: 8, marginTop: 9 },
+  listFilter: {
+    flex: 1,
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.control,
+    backgroundColor: colors.subtle,
+  },
+  activeListFilter: { backgroundColor: colors.ink, borderColor: colors.ink },
+  listFilterText: { color: colors.ink, fontSize: 12, fontWeight: "700" },
+  activeListFilterText: { color: colors.background },
+  profileList: { marginTop: 9 },
   sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: "800", marginTop: 22 },
   tasteCard: {
     borderWidth: 1,

@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { FeedItem } from "../api/social";
 import { colors } from "../theme";
@@ -8,6 +8,7 @@ import TitlePoster from "./TitlePoster";
 type Props = {
   activity: FeedItem;
   isLast?: boolean;
+  onPress?: () => void;
 };
 
 const ACTION_COPY = {
@@ -27,11 +28,19 @@ function relativeTime(timestamp: string) {
   return `${Math.floor(elapsedSeconds / 86400)}d`;
 }
 
-export default function ActivityCard({ activity, isLast = false }: Props) {
+export default function ActivityCard({ activity, isLast = false, onPress }: Props) {
   const initial = activity.user.full_name.slice(0, 1).toUpperCase() || "W";
 
   return (
-    <View style={[styles.row, isLast && styles.lastRow]}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.row,
+        isLast && styles.lastRow,
+        pressed && styles.pressed,
+      ]}
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initial}</Text>
       </View>
@@ -60,7 +69,7 @@ export default function ActivityCard({ activity, isLast = false }: Props) {
         </View>
       ) : null}
       <Text style={styles.time}>{relativeTime(activity.created_at)}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -92,4 +101,5 @@ const styles = StyleSheet.create({
   score: { color: colors.ink, fontSize: 14, fontWeight: "800" },
   rank: { color: "#707070", fontSize: 9, marginTop: 1 },
   time: { color: "#707070", fontSize: 11, marginLeft: 8 },
+  pressed: { opacity: 0.7 },
 });

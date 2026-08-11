@@ -9,23 +9,27 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getMyList } from "../api/events";
 import type { MyList } from "../api/events";
 import { getFeed } from "../api/social";
 import type { FeedItem } from "../api/social";
-import { getTrendingTitles } from "../api/titles";
+import { getStoredTitle, getTrendingTitles } from "../api/titles";
 import { useAuth } from "../auth/AuthContext";
 import ActivityCard from "../components/ActivityCard";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitlePoster from "../components/TitlePoster";
 import { colors, radii } from "../theme";
+import type { AppTabsParamList } from "../navigation/AppTabs";
 import type { ExternalTitle } from "../types/title";
 
 const EMPTY_LIST: MyList = { want_to_watch: [], watched: [] };
 
-export default function HomeScreen() {
+type Props = BottomTabScreenProps<AppTabsParamList, "Home">;
+
+export default function HomeScreen({ navigation }: Props) {
   const { token } = useAuth();
   const [myList, setMyList] = useState<MyList>(EMPTY_LIST);
   const [recommendations, setRecommendations] = useState<ExternalTitle[]>([]);
@@ -83,6 +87,19 @@ export default function HomeScreen() {
     }, [loadHome])
   );
 
+  function openExternalTitle(title: ExternalTitle) {
+    navigation.navigate("Search", { screen: "TitleDetail", params: { title } });
+  }
+
+  async function openStoredTitle(titleId: number) {
+    try {
+      const title = await getStoredTitle(titleId);
+      navigation.navigate("Search", { screen: "TitleDetail", params: { title } });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Could not open title");
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
@@ -127,7 +144,11 @@ export default function HomeScreen() {
             contentContainerStyle={styles.posterRow}
           >
             {recommendations.slice(0, 6).map((title) => (
-              <View key={title.id} style={styles.posterItem}>
+              <Pressable
+                key={title.id}
+                style={({ pressed }) => [styles.posterItem, pressed && styles.pressed]}
+                onPress={() => openExternalTitle(title)}
+              >
                 <TitlePoster
                   name={title.name}
                   posterUrl={title.poster_url}
@@ -136,7 +157,7 @@ export default function HomeScreen() {
                 />
                 <Text style={styles.posterTitle} numberOfLines={2}>{title.name}</Text>
                 <Text style={styles.posterMeta}>{title.year ?? title.type}</Text>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
         ) : (
@@ -167,6 +188,7 @@ export default function HomeScreen() {
                 key={activity.id}
                 activity={activity}
                 isLast={index === items.length - 1}
+                onPress={() => void openStoredTitle(activity.title.id)}
               />
             ))
           ) : (
@@ -252,4 +274,5 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   errorText: { color: colors.error, fontSize: 12, textAlign: "center" },
+  pressed: { opacity: 0.7 },
 });

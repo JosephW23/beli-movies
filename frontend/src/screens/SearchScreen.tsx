@@ -8,18 +8,18 @@ import {
   TextInput,
   View,
 } from "react-native";
-import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { searchTmdbTitles } from "../api/titles";
 import AppScreenHeader from "../components/AppScreenHeader";
 import TitlePoster from "../components/TitlePoster";
-import type { AppTabsParamList } from "../navigation/AppTabs";
+import type { SearchStackParamList } from "../navigation/SearchStack";
 import { colors, radii } from "../theme";
 import type { ExternalTitle } from "../types/title";
 
 type Filter = "All" | "Movies" | "TV Shows" | "Anime";
-type Props = BottomTabScreenProps<AppTabsParamList, "Search">;
+type Props = NativeStackScreenProps<SearchStackParamList, "SearchHome">;
 const FILTERS: Filter[] = ["All", "Movies", "TV Shows", "Anime"];
 
 export default function SearchScreen({ navigation }: Props) {
@@ -69,7 +69,7 @@ export default function SearchScreen({ navigation }: Props) {
   }, [filter, titles]);
 
   function openTitle(title: ExternalTitle) {
-    navigation.navigate("Add", { screen: "TitleDetail", params: { title } });
+    navigation.navigate("TitleDetail", { title });
   }
 
   return (

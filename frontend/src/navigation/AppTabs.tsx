@@ -5,16 +5,14 @@ import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import type { NavigatorScreenParams } from "@react-navigation/native";
 
 import HomeScreen from "../screens/HomeScreen";
-import SearchScreen from "../screens/SearchScreen";
 import ProfileScreen from "../screens/ProfileScreen";
-import AddStack from "./AddStack";
-import type { AddStackParamList } from "./AddStack";
+import SearchStack from "./SearchStack";
+import type { SearchStackParamList } from "./SearchStack";
 import { colors } from "../theme";
 
 export type AppTabsParamList = {
   Home: undefined;
-  Add: NavigatorScreenParams<AddStackParamList> | undefined;
-  Search: undefined;
+  Search: NavigatorScreenParams<SearchStackParamList> | undefined;
   Profile: undefined;
 };
 
@@ -24,14 +22,14 @@ export default function AppTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
-        const addRoute = route.name === "Add" ? getFocusedRouteNameFromRoute(route) : undefined;
+        const searchRoute = route.name === "Search" ? getFocusedRouteNameFromRoute(route) : undefined;
         return {
           headerShown: false,
           tabBarActiveTintColor: colors.ink,
           tabBarInactiveTintColor: "#737373",
           tabBarLabelStyle: { fontSize: 13, fontWeight: "700", marginTop: 2 },
           tabBarStyle: {
-            display: addRoute === "Compare" ? "none" : "flex",
+            display: searchRoute === "Compare" ? "none" : "flex",
             height: 82,
             paddingTop: 8,
             paddingBottom: 10,
@@ -45,8 +43,7 @@ export default function AppTabs() {
       }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Add" component={AddStack} />
-      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Search" component={SearchStack} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -63,7 +60,6 @@ function TabGlyph({
 }) {
   const glyphs: Record<keyof AppTabsParamList, string> = {
     Home: "⌂",
-    Add: "+",
     Search: "⌕",
     Profile: "○",
   };
@@ -72,7 +68,7 @@ function TabGlyph({
     <Text
       style={{
         color,
-        fontSize: name === "Add" ? 31 : 28,
+        fontSize: 28,
         fontWeight: focused ? "800" : "500",
         lineHeight: 31,
       }}

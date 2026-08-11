@@ -67,3 +67,10 @@ export function getTitleRatingSummary(
 ): Promise<RatingSummary> {
   return apiRequest<RatingSummary>(`/titles/${titleId}/rating-summary`, { signal });
 }
+
+export function getStoredTitle(
+  titleId: number,
+  signal?: AbortSignal
+): Promise<Title> {
+  return apiRequest<Title>(`/titles/${titleId}`, { signal });
+}

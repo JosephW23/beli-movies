@@ -112,7 +112,7 @@ Part 3:
 - Titles API implemented
 - Seed data loaded into Supabase
 - `/titles` and `/titles/{id}` endpoints working
-- Navigation refactored to Home / Add / Search / Profile
+- Navigation refactored to Home / Search / Profile; saved lists live on Profile
 - Product model finalized
 
 Day 4:

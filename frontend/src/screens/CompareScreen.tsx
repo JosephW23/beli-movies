@@ -16,11 +16,11 @@ import { useAuth } from "../auth/AuthContext";
 import BrandLogo from "../components/BrandLogo";
 import TitlePoster from "../components/TitlePoster";
 import { formatTitleType } from "../components/TitleRowList";
-import type { AddStackParamList } from "../navigation/AddStack";
+import type { SearchStackParamList } from "../navigation/SearchStack";
 import { colors, radii } from "../theme";
 import type { ComparisonTitle, RankingProgress } from "../types/ranking";
 
-type Props = NativeStackScreenProps<AddStackParamList, "Compare">;
+type Props = NativeStackScreenProps<SearchStackParamList, "Compare">;
 
 export default function CompareScreen({ navigation, route }: Props) {
   const { token } = useAuth();
