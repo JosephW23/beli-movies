@@ -71,6 +71,10 @@ poster data.
 | --- | --- |
 | <img src="docs/images/home-feed.png" width="360" alt="WATCHD Home screen showing personalized recommendations and activity" /> | <img src="docs/images/rate-compare.png" width="360" alt="WATCHD comparison screen asking the user to choose between two watched titles" /> |
 
+| Search — Discover Titles | Profile — Lists & Rankings |
+| --- | --- |
+| <img src="docs/images/search-discover.png" width="360" alt="WATCHD Search screen for discovering movies, TV shows, and anime" /> | <img src="docs/images/profile-rankings.png" width="360" alt="WATCHD Profile screen showing lists, taste genres, scores, and personal rankings" /> |
+
 The Add experience is now part of Search: selecting any title opens its shared
 detail page, where the user can update a list status, mark it watched, and enter
 the comparison flow shown above. Profile contains the user's lists, rankings,
