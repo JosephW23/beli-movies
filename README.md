@@ -1,43 +1,149 @@
 # WATCHD
 
-A social app for movies, shows, anime, and anything else people watch. Users
-can save watch statuses, build their taste profile, connect with friends, and
-see recent friend activity.
+**Beli for movies, TV shows, and anime.**
 
-## App Navigation
+WATCHD is a social discovery and ranking app for everything people watch. Instead
+of forcing users to invent a number for every title, WATCHD asks simple pairwise
+questions—*Which did you prefer?*—and turns those choices into a personal rating
+from 1.0 to 10.0. Users can discover real titles, record what they watched, build
+rankings, write reviews, follow friends' activity, and receive recommendations
+with clear reasons.
 
-Home | Add | Search | Profile
+## Introduction to the Project
 
-- **Home** — recommendations and activity from you and your friends
-- **Add** — find a title and mark Want to Watch, Watched, or Watching
-- **Search** — discover movies, shows, and anime
-- **Profile** — taste, stats, top titles, and username-based friend management
+### Why was WATCHD chosen?
 
-## Stack
+Choosing something to watch is a familiar problem, but the available tools often
+split the experience into separate products: one app for searching, another for
+lists, another for reviews, and group chats for recommendations from friends.
+WATCHD was chosen as a way to bring those actions into one focused mobile app.
+The idea is **Beli, but for movies and shows**: a social experience built around
+personal taste rather than a single universal rating.
 
-- React Native + Expo (TypeScript)
-- FastAPI (Python)
-- Supabase (Auth + Postgres)
-- PostgreSQL
-- Docker
-- pytest + GitHub Actions CI
+### Why is it cool?
+
+People usually know whether they preferred one title to another even when they
+cannot confidently decide whether something deserves a 7.8 or an 8.2. WATCHD
+uses that easier comparison to place a title within the user's existing ranking
+and calculate a one-decimal score. The result feels personal: two people can
+watch the same movie and build different rankings without either opinion being
+treated as wrong.
+
+WATCHD also connects ranking to discovery. The app uses a person's scores,
+watch history, genres, and social signals to suggest more titles, explains why a
+recommendation appeared, and keeps TMDb search and trending data current.
+
+### Why does a good predictive model matter?
+
+A useful predictive model can reduce choice overload and help people spend less
+time browsing and more time watching something they are likely to enjoy. It can
+also surface older, niche, international, or genre-specific titles that would be
+missed by a popularity-only list. Explanations such as “Because you liked
+Inception” make recommendations easier to trust and evaluate.
+
+Prediction also carries responsibility. A weak model can create repetitive
+feedback loops, overvalue popular content, or make cold-start users feel unseen.
+WATCHD therefore treats prediction as an aid rather than a final authority:
+recommendations include reasons, users retain control of their lists and scores,
+and future models should be evaluated for accuracy, diversity, privacy, and
+serendipity—not engagement alone.
+
+## Features
+
+- Supabase email/password authentication with JWT-protected FastAPI routes
+- Username-based profiles, friend connections, and social activity feed
+- Live movie and TV search, details, posters, and trends from TMDb
+- Want to Watch, Currently Watching, and Watched status tracking
+- “Did you enjoy the WATCHD?” input followed by pairwise title comparisons
+- Personal rankings and stable 1.0–10.0 scores with one decimal place
+- Manual score editing and written reviews
+- Personalized recommendations with human-readable reasons
+- Friends-only activity plus current TMDb trending content
+- Paginated feeds, recommendation lists, retry states, and pull-to-refresh
+- Backend tests, Docker packaging, and GitHub Actions continuous integration
+
+## Screenshots
+
+These screenshots are from the current Part 13 iOS build and use live TMDb
+poster data.
+
+| Home — Feed & Recommendations | Add/Rate — Compare Titles |
+| --- | --- |
+| <img src="docs/images/home-feed.png" width="360" alt="WATCHD Home screen showing personalized recommendations and activity" /> | <img src="docs/images/rate-compare.png" width="360" alt="WATCHD comparison screen asking the user to choose between two watched titles" /> |
+
+The Add experience is now part of Search: selecting any title opens its shared
+detail page, where the user can update a list status, mark it watched, and enter
+the comparison flow shown above. Profile contains the user's lists, rankings,
+reviews, stats, and friends.
+
+## Architecture Summary
+
+WATCHD separates the mobile client, API, catalog provider, authentication, and
+database responsibilities:
+
+```text
+React Native / Expo app
+  ├── Supabase Auth ── issues user session and JWT
+  └── FastAPI ─────── verifies JWT and runs application logic
+          ├── Supabase Postgres ── users, titles, events, scores, and social data
+          └── TMDb API ─────────── search, metadata, posters, and trending titles
+```
+
+The root navigator gates the app using the Supabase session. Logged-out users see
+the Welcome, Login, and Signup stack; logged-in users see Home, Search, and
+Profile. Home owns feed and recommendation views. Search owns title discovery,
+details, status actions, comparisons, reviews, and score editing. Profile owns
+personal lists, rankings, stats, and friend management.
+
+Backend requests follow `router → service → model/database`. FastAPI routers
+validate HTTP input, services hold business rules and database queries, and the
+authentication module verifies Supabase JWTs. On the frontend, screens call
+typed API functions through a shared client while reusable components render the
+app's warm, minimal WATCHD design system.
+
+## Technology Stack
+
+- **Mobile:** React Native, Expo, TypeScript, React Navigation, TanStack Query
+- **API:** FastAPI, Python, SQLModel, Pydantic
+- **Data and auth:** Supabase Auth and PostgreSQL
+- **Catalog:** TMDb Movie and TV API
+- **Quality:** pytest, Docker, GitHub Actions
 
 ## Project Structure
 
-- `frontend/src/navigation/` — auth gate, main tabs, and nested Add stack
-- `frontend/src/screens/` — screen-level layout and data orchestration
-- `frontend/src/components/` — reusable presentational UI
-- `frontend/src/api/` — typed backend client functions
-- `frontend/src/types/` — shared TypeScript models
-- `backend/app/api/` — thin FastAPI routers
-- `backend/app/services/` — title, event, and social business logic
-- `backend/app/core/` — Supabase JWT verification
-- `backend/app/models/` — database models
-- `docs/` — architecture, API, auth, and design notes
+```text
+beli-movies/
+├── frontend/
+│   └── src/
+│       ├── api/          # typed FastAPI client functions
+│       ├── auth/         # Supabase session and auth gate
+│       ├── components/   # reusable WATCHD UI
+│       ├── navigation/   # auth, tabs, and nested screen stacks
+│       ├── screens/      # screen layout and data orchestration
+│       └── types/        # shared TypeScript models
+├── backend/
+│   ├── app/
+│   │   ├── api/          # FastAPI routers
+│   │   ├── core/         # settings and JWT verification
+│   │   ├── models/       # SQLModel database models
+│   │   └── services/     # domain and integration logic
+│   └── tests/            # isolated backend tests
+├── docs/                 # detailed project documentation
+└── .github/workflows/    # backend continuous integration
+```
 
-## How to Run Locally
+## Final Local Setup
 
-### Backend
+### Prerequisites
+
+- Python 3.12+
+- Node.js and npm
+- Expo-compatible iOS Simulator, Android emulator, or physical device
+- Supabase project with Auth and Postgres
+- TMDb API read-access token
+- Docker Desktop (optional for containerized backend)
+
+### 1. Configure and run the backend
 
 From the repository root:
 
@@ -47,153 +153,172 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+```
+
+Fill in `backend/.env`:
+
+```dotenv
+DATABASE_URL=postgresql://...
+SUPABASE_JWKS_URL=https://your-project-ref.supabase.co/auth/v1/keys
+SUPABASE_ISSUER=https://your-project-ref.supabase.co/auth/v1
+SUPABASE_AUDIENCE=authenticated
+TMDB_READ_ACCESS_TOKEN=your-private-token
+```
+
+Then start FastAPI:
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-Replace the placeholders in `backend/.env` with your Supabase Postgres and Auth
-values. The required variables are:
+The API is available at `http://127.0.0.1:8000`. Verify `/health`, then open
+`/docs` for FastAPI's interactive API reference.
 
-- `DATABASE_URL`
-- `SUPABASE_JWKS_URL`
-- `SUPABASE_ISSUER`
-- `SUPABASE_AUDIENCE` (normally `authenticated`)
-- `TMDB_READ_ACCESS_TOKEN` (or the optional `TMDB_API_KEY` alternative)
+### 2. Configure and run the frontend
 
-The API runs at `http://127.0.0.1:8000`. Check `/health`, then open `/docs`
-for the interactive API documentation.
-
-### Frontend
-
-In a second terminal:
+In another terminal, from the repository root:
 
 ```bash
 cd frontend
 npm install
 cp .env.example .env
+```
+
+Fill in `frontend/.env`:
+
+```dotenv
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+EXPO_PUBLIC_API_BASE_URL=http://your-computer-lan-ip:8000
+```
+
+Start Expo:
+
+```bash
 npm start
 ```
 
-Set these values in `frontend/.env`:
+Press `i` for iOS or `a` for Android. A physical phone must use the computer's
+LAN IP for `EXPO_PUBLIC_API_BASE_URL`; `localhost` points back to the phone.
 
-- `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-- `EXPO_PUBLIC_API_BASE_URL`
+> [!IMPORTANT]
+> Never commit `backend/.env` or `frontend/.env`. Both are ignored by Git. Only
+> placeholder `.env.example` files belong in the repository, and TMDb secrets
+> remain on the backend rather than being bundled into the mobile app.
 
-For a physical phone, `EXPO_PUBLIC_API_BASE_URL` must use the computer's LAN IP,
-such as `http://192.168.1.20:8000`, rather than `localhost`. With Expo running,
-press `i` for the iOS Simulator or `a` for Android. Use the installed development
-build when native modules are required.
+## Tests
 
-Never commit either `.env` file. They are ignored by Git; the tracked
-`.env.example` files contain placeholders only.
-
-## Performance and Stability
-
-- Compound database indexes cover common user/title, ranking, friendship, and
-  newest-activity queries.
-- Local title browsing and the social feed use validated, database-level
-  pagination rather than loading every row.
-- Feed, My List, rankings, and friends use joined or batched relationship
-  queries to avoid obvious N+1 lookups.
-- Mobile feed pages load lazily, prevent duplicate load-more requests, and keep
-  existing content when a later page fails.
-- Home and Profile support pull-to-refresh with distinct loading, empty, and
-  retry states.
-
-Implementation details are in [`docs/performance.md`](docs/performance.md).
-
-## Testing
-
-Run the complete backend test suite with:
+The backend suite uses an isolated in-memory SQLite database, mocked
+authentication, and fixed TMDb responses. It does not require real Supabase,
+TMDb, JWT, or production database credentials.
 
 ```bash
 cd backend
 source .venv/bin/activate
-pip install -r requirements.txt
 pytest
 ```
 
-The tests use an isolated in-memory SQLite database, mocked authentication, and
-fixed TMDb catalog responses. They do not use a real Supabase account, JWT, TMDb
-token, or production data. Current coverage focuses on:
+Coverage focuses on protected routes, event statuses and user isolation,
+pairwise ranking, personal scoring, recommendation reasons and exclusions,
+pagination, and important service regressions.
 
-- authenticated and unauthorized protected routes;
-- event creation, all watch statuses, My List grouping, and user isolation;
-- pairwise ranking placement and deterministic personal 1–10 scoring;
-- ranking validation and score ordering;
-- deterministic recommendations, reason strings, interaction exclusions, and limits;
-- pagination and other core service regressions.
+## Docker and Continuous Integration
 
-This is focused coverage for important backend behavior, not complete line
-coverage.
+Build and run the FastAPI backend from `backend/`:
 
-## Docker and CI
+```bash
+docker build -t watchd-backend .
+docker run --name watchd-backend --env-file .env -p 8000:8000 watchd-backend
+```
 
-The FastAPI backend has a Docker image definition, and GitHub Actions runs the
-backend pytest suite automatically on every push and pull request. Runtime
-secrets are passed to Docker through environment variables and are not included
-in the image or CI workflow.
+Runtime secrets are supplied through environment variables and are not copied
+into the image. GitHub Actions runs the backend pytest suite on every push and
+pull request. Part 13 was verified with a successful local Docker image and a
+green **Backend CI** workflow run.
 
-See [`docs/deploy.md`](docs/deploy.md) for the Docker build, run, verification,
-and container-management commands.
+## Documentation
 
-## Screenshots
+- [API reference](docs/api.md)
+- [Authentication and JWT flow](docs/auth.md)
+- [Ranking and scoring](docs/ranking.md)
+- [Recommendations and reasons](docs/recs.md)
+- [Docker and deployment guide](docs/deploy.md)
+- [Architecture](docs/architecture.md)
+- [Performance and stability](docs/performance.md)
+- [TMDb integration](docs/tmdb.md)
+- [WATCHD design system](docs/design.md)
 
-| Home | Add | Search | Profile |
-| --- | --- | --- | --- |
-| Coming soon | Coming soon | Coming soon | Coming soon |
+## Project Progress
 
-## Status
+- **Part 1 — Foundation:** repository structure, FastAPI health endpoint, Expo
+  application, and initial documentation.
+- **Part 2 — Database:** Supabase PostgreSQL connection, SQLModel session,
+  initial domain models, and database health check.
+- **Part 3 — Titles and navigation:** title APIs, seed catalog, title detail
+  routes, and the initial mobile navigation model.
+- **Part 4 — Authentication:** Supabase signup/login, JWT-gated navigation,
+  backend token verification, user upsert, and authenticated `/me`.
+- **Part 5 — Events and My List:** Want to Watch, Watched, and Currently Watching
+  events plus grouped personal lists.
+- **Part 6 — Friends and activity:** username-based mutual friendships,
+  activity creation, social feed, and friend management.
+- **Part 7 — Cleanup and UI polish:** thinner routers, domain services, shared
+  frontend client/types/components, resilient states, and consistent WATCHD UI.
+- **Part 8 — Comparisons and scoring:** enjoyment input, pairwise ranking,
+  comparison history, Too Tough/Skip handling, and calculated decimal scores.
+- **Part 9 — Profile and rankings:** personal stats, filtered score-ordered
+  rankings, saved lists, reviews, and profile states.
+- **Part 9.5 — TMDb integration:** live movie/TV search, metadata, posters,
+  trending content, backend-only credentials, and local title import.
+- **Part 10 — Recommendations and rating controls:** personalized reasons,
+  expanded For You and Trending views, Following state, stable scoring,
+  manual score edits, and review writing.
+- **Part 11 — Performance and stability:** database indexes, bounded pagination,
+  batched relationship queries, cache-aware mobile data, and retry/refresh flows.
+- **Part 12 — Backend tests:** isolated coverage for authentication, events,
+  rankings, recommendations, pagination, and core service logic.
+- **Part 13 — CI and Docker:** production-style backend image, runtime secret
+  handling, container verification, and green GitHub Actions backend CI.
 
-Part 1:
-- Repo, folders, and docs initialized
-- FastAPI backend running with /health endpoint
-- Expo React Native app initialized
-- iOS Simulator setup in progress
+## Conclusion and Future Directions
 
-Part 2:
-- Supabase project created
-- Supabase Postgres connected to FastAPI via DATABASE_URL
-- SQLModel session wired (engine + get_session dependency)
-- Core database models created (User, Title, Event, Comparison, Score, Friendship, Activity)
-- Tables successfully created in Supabase
-- /db-health endpoint added and returns {"db":"ok"}
+WATCHD began as a simple “Beli for movies” idea, but the comparison system made
+it more interesting than a standard watchlist. My favorite part of the project
+is that it turns a vague opinion into an understandable personal ranking without
+pretending taste is objective. Building the full path—from Supabase identity and
+Postgres data to TMDb discovery, social activity, recommendation reasons, tests,
+and Docker—also made the project feel like a real product rather than a collection
+of disconnected screens.
 
-Part 3:
-- Titles API implemented
-- Seed data loaded into Supabase
-- `/titles` and `/titles/{id}` endpoints working
-- Navigation refactored to Home / Search / Profile; saved lists live on Profile
-- Product model finalized
+There is still meaningful work ahead. The current recommendation logic is a
+deterministic, explainable system built from rankings, genres, watch history, and
+social signals; it is not yet a trained machine-learning model. With enough
+privacy-respecting interaction data, a future hybrid model could combine these
+signals with collaborative filtering or embeddings. I would evaluate it not
+only on prediction accuracy but also on novelty, catalog diversity, cold-start
+quality, and whether its explanations remain honest.
 
-Day 4:
-- Supabase login/signup and JWT-gated navigation
-- FastAPI JWT verification and authenticated `/me`
+### Planned Part 14 — Production Deployment
 
-Day 5:
-- Protected event creation for WANT, WATCHED, and WATCHING
-- Authenticated My List and Add-tab title logging
+Part 14 has **not** been completed yet. The planned next step is to:
 
-Day 6:
-- Mutual friend creation and friend listing
-- Event-backed activity records and authenticated social feed
-- Home feed cards and Profile friend management
+1. Create an AWS Elastic Beanstalk application using the Docker platform.
+2. Configure `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`,
+   `SUPABASE_AUDIENCE`, and the TMDb credential as protected environment values.
+3. Deploy the FastAPI Docker image and verify health, database, auth, search,
+   and recommendation endpoints over HTTPS.
+4. Point `EXPO_PUBLIC_API_BASE_URL` at the production API and run an end-to-end
+   mobile smoke test.
+5. Update the deployment guide with the final production URL and operational
+   steps.
 
-Day 7:
-- Thin backend routers and domain-focused services
-- Stable auth gate, main tabs, and nested Add flow
-- Shared frontend API client and reusable data types/components
-- Loading, error, empty, and action-feedback states
-- Local setup and environment documentation
+Beyond deployment, possible directions include taste-overlap views for friends,
+notifications, richer review conversations, spoiler controls, stronger
+moderation and privacy tools, production database migrations, observability,
+and a more diverse recommendation model that deliberately leaves room for
+surprise.
 
-Day 8:
-- Pairwise preference ranking for watched titles
-- Binary rank insertion and calculated personal 1–10 scores
-- Compare screen inside the Add stack
-- Stored comparison history and ranking documentation
+## Data Attribution
 
-Day 9:
-- Authenticated personal rankings endpoint with limit and media filters
-- Score-ordered My Rankings section on Profile
-- All, Movies, and TV ranking filters
-- Ranking-specific loading, error, and empty states
+This product uses the TMDb API and TMDb images but is not endorsed or certified
+by TMDb.
